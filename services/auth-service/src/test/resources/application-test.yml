@@ -1,0 +1,57 @@
+# Used only when tests run (@ActiveProfiles("test")). Swaps Postgres for an
+# in-memory H2 database so tests don't need a real database running, and
+# uses dummy OAuth2/SMS credentials since we're not actually calling those in tests.
+#
+# NOTE: the full contextLoads test now needs real Redis + RabbitMQ running
+# locally too (the @RabbitListener tries to connect at startup) - a good
+# candidate to fix with Testcontainers later, not solved in this pass.
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test
+            client-secret: test
+          github:
+            client-id: test
+            client-secret: test
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: test
+
+jwt:
+  secret: test-secret-key-for-unit-tests-only-not-for-production-use
+  access-token-expiration-ms: 900000
+  refresh-token-expiration-ms: 604800000
+
+app:
+  oauth2:
+    redirect-uri: http://localhost:3000/oauth2/callback
+
+otp:
+  expiration-minutes: 5
+
+sms:
+  twofactor:
+    api-key: test
+    base-url: https://2factor.in/API/V1

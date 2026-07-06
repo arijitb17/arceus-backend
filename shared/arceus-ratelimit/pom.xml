@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.arijit</groupId>
+        <artifactId>arceus-platform</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>arceus-ratelimit</artifactId>
+    <packaging>jar</packaging>
+    <name>arceus-ratelimit</name>
+    <description>
+        Shared, Redis-backed rate limiting. Any service that already has a
+        legitimate Redis connection (same one auth-service and
+        notification-service already share for OTP state) can depend on this
+        and get an @RateLimited annotation - no separate service, no extra
+        network hop on the request path.
+    </description>
+
+    <dependencies>
+        <!-- The actual limiting primitive: atomic INCR+EXPIRE via a Lua script -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- @RateLimited is enforced via a plain Spring proxy-based @Aspect (no
+             AspectJ compile-time weaving needed). Boot 4 renamed
+             spring-boot-starter-aop -> spring-boot-starter-aspectj and widened
+             its scope to full AspectJ weaving, which is more than this needs -
+             spring-aop itself already comes in transitively via spring-context,
+             so the only thing actually missing is aspectjweaver for parsing the
+             @Aspect/@Around annotations. Version is still managed by the
+             spring-boot-starter-parent BOM. -->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+
+        <!-- For resolving the caller's IP off the current request when perIp() is used.
+             Only actually exercised in services that are web apps (auth-service, later
+             gateway-service) - harmless if a non-web service depends on this jar and
+             never uses perIp(). -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+    </dependencies>
+</project>
