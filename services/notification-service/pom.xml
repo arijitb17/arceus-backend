@@ -17,6 +17,10 @@
     <description>Delivers OTPs and other notifications - consumes what auth-service (and later others) publish</description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
         <!-- Pinned explicitly: something in this module's dependency tree
              (likely spring-boot-starter-mail) pulls an older, conflicting
              Jackson version transitively. An explicit declaration here wins
@@ -32,9 +36,22 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
+        <!-- gRPC server: exposes NotificationGatewayService so the Arceus Gateway
+             can forward requests here without a REST hop over the network. -->
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-starter</artifactId>
+            <version>${grpc-spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.arijit</groupId>
+            <artifactId>arceus-grpc-contracts</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -80,7 +97,7 @@
         <!-- Reads the same root .env as auth-service -->
         <dependency>
             <groupId>me.paulschwarz</groupId>
-            <artifactId>springboot4-dotenv</artifactId>
+            <artifactId>springboot3-dotenv</artifactId>
             <version>5.0.1</version>
         </dependency>
 
@@ -92,7 +109,7 @@
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

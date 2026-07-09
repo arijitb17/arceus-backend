@@ -17,18 +17,23 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 /**
  * The one API every other service should call instead of implementing its
- * own email/SMS/push logic - see roadmap Step 2.
+ * own email/SMS/push logic - see roadmap Step 2. Admin-only: this can send
+ * arbitrary messages to arbitrary recipients and exposes delivery history
+ * (recipient emails/phone numbers), neither of which any authenticated
+ * end user should be able to reach.
  */
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
 @Tag(name = "Notifications", description = "Send templated notifications and inspect delivery history")
+@PreAuthorize("hasRole('ADMIN')")
 public class NotificationController {
 
     private final NotificationDispatchService dispatchService;

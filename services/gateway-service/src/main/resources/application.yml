@@ -1,0 +1,73 @@
+server:
+  port: ${GATEWAY_PORT:8090}
+
+grpc:
+  client:
+    auth:
+      address: static://${AUTH_GRPC_HOST:localhost}:${AUTH_GRPC_PORT:9081}
+      negotiation-type: plaintext
+    notification:
+      address: static://${NOTIFICATION_GRPC_HOST:localhost}:${NOTIFICATION_GRPC_PORT:9082}
+      negotiation-type: plaintext
+    audit:
+      address: static://${AUDIT_GRPC_HOST:localhost}:${AUDIT_GRPC_PORT:9083}
+      negotiation-type: plaintext
+    ratelimit:
+      address: static://${RATELIMIT_GRPC_HOST:localhost}:${RATELIMIT_GRPC_PORT:9084}
+      negotiation-type: plaintext
+
+spring:
+  application:
+    name: gateway-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+# --- Arceus Gateway specific configuration -----------------------------
+arceus:
+  gateway:
+    # Same signing secret auth-service uses to issue access tokens - the
+    # Gateway only ever verifies, it never issues or refreshes tokens itself.
+    jwt:
+      secret: ${JWT_SECRET}
+
+    # Endpoints that don't require a valid access token. Matched as prefixes
+    # against the incoming request path (before the /api/<service> segment
+    # is stripped). Keep this in sync with what each service's own security
+    # config also treats as public - the Gateway check is a fast first line
+    # of defense, not a replacement for it.
+    public-paths:
+      - /api/auth/register
+      - /api/auth/verify-email
+      - /api/auth/verify-phone
+      - /api/auth/login
+      - /api/auth/verify-login-otp
+      - /api/auth/forgot-password
+      - /api/auth/verify-forgot-password-otp
+      - /api/auth/reset-password
+      - /api/auth/refresh
+      - /api/auth/oauth2/exchange
+      - /health
+
+    # Coarse, edge-level rate limit applied to every protected request
+    # before it's forwarded to a service, on top of (not instead of) each
+    # service's own fine-grained @RateLimited rules.
+    rate-limit:
+      limit: ${GATEWAY_RATE_LIMIT:100}
+      window-seconds: ${GATEWAY_RATE_LIMIT_WINDOW_SECONDS:60}
+
+    # Exact origins allowed to call this API from a browser with
+    # credentials (Authorization header). Empty by default - nothing is
+    # allowed cross-origin until this is set. Comma-separated env var,
+    # split into a list here.
+    cors:
+      allowed-origins: ${GATEWAY_CORS_ALLOWED_ORIGINS:}
+
+logging:
+  pattern:
+    level: "%5p [correlationId=%X{correlationId:-}]"
+  level:
+    com.arijit.gatewayservice: ${LOG_LEVEL_GATEWAY_SERVICE:INFO}

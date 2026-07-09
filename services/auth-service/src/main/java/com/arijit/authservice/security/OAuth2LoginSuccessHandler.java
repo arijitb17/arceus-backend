@@ -1,9 +1,8 @@
 package com.arijit.authservice.security;
 
 import com.arijit.authservice.entity.AuthProvider;
-import com.arijit.authservice.entity.RefreshToken;
 import com.arijit.authservice.entity.User;
-import com.arijit.authservice.repository.RefreshTokenRepository;
+import com.arijit.authservice.otp.OAuth2ExchangeService;
 import com.arijit.authservice.repository.UserRepository;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,7 +10,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -19,8 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.util.Map;
 
 /**
  * This is the bridge between "Google/GitHub says this person is legit" and
@@ -29,21 +25,22 @@ import java.util.Map;
  * Spring Security's OAuth2 login flow calls this automatically after the
  * user approves access on Google's/GitHub's consent screen. At that point
  * we have an OAuth2User with whatever profile fields that provider exposes -
- * our job is to turn that into one of OUR User rows, then hand back the
- * exact same kind of JWT a local email/password login would produce.
+ * our job is to turn that into one of OUR User rows.
  *
- * Why bother, instead of just using Google's token directly? Because every
- * other service in the platform (API Gateway, etc.) should only ever need
- * to understand ONE token format, regardless of how the person logged in.
+ * We deliberately do NOT put the access/refresh tokens in this redirect:
+ * it's a browser GET request, so anything in the URL lands in browser
+ * history, the server's access logs, and any Referer header sent
+ * afterwards. Instead we hand back a random single-use exchange code (see
+ * {@link OAuth2ExchangeService}) and let the frontend POST it to
+ * {@code /api/auth/oauth2/exchange} to get the real tokens in a response
+ * body instead.
  */
 @Component
 @RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
-    private final JwtService jwtService;
-    private final CustomUserDetailsService customUserDetailsService;
+    private final OAuth2ExchangeService oAuth2ExchangeService;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -60,24 +57,10 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         OAuth2User oAuth2User = oauthToken.getPrincipal();
 
         User user = resolveUser(registrationId, oAuth2User);
+        String code = oAuth2ExchangeService.issueCode(user.getId());
 
-        UserDetails userDetails = customUserDetailsService.loadUserByUsername(user.getEmail());
-        String accessToken = jwtService.generateAccessToken(userDetails, Map.of("name", user.getName()));
-        String refreshTokenValue = jwtService.generateRefreshToken(userDetails);
-
-        refreshTokenRepository.save(RefreshToken.builder()
-                .token(refreshTokenValue)
-                .user(user)
-                .expiryDate(Instant.now().plusMillis(jwtService.getRefreshTokenExpirationMs()))
-                .build());
-
-        // Redirect the browser back to the frontend with both tokens attached.
-        // The frontend is responsible for grabbing these from the URL and
-        // storing them (e.g. in memory / secure storage) just like it would
-        // after a normal login API call.
         String target = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("accessToken", accessToken)
-                .queryParam("refreshToken", refreshTokenValue)
+                .queryParam("code", code)
                 .build()
                 .toUriString();
 

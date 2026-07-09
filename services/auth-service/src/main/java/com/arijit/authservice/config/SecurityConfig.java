@@ -1,16 +1,21 @@
 package com.arijit.authservice.config;
 
+import com.arijit.authservice.security.ApiKeyAuthFilter;
 import com.arijit.authservice.security.CustomUserDetailsService;
+import com.arijit.authservice.security.JwtService;
+import com.arijit.authservice.service.ApiKeyService;
 import jakarta.servlet.http.HttpServletResponse;
 import com.arijit.authservice.security.JwtAuthFilter;
 import com.arijit.authservice.security.OAuth2LoginSuccessHandler;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -22,18 +27,29 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 // This is the class that wires everything else in `security/` together into
 // an actual set of rules Spring Security enforces on every request.
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
-    private final JwtAuthFilter jwtAuthFilter;
+    private final JwtService jwtService;
+    private final ApiKeyService apiKeyService;
     private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+
+    // Comma-separated list of exact origins allowed to call this API with
+    // credentials, e.g. "https://app.example.com,https://admin.example.com".
+    // Defaults to nothing allowed rather than "*" - a wildcard origin
+    // combined with allowCredentials(true) is a real vulnerability (any
+    // site can ride the browser's cookies/auth), not just a lint warning.
+    @Value("${app.cors.allowed-origins:}")
+    private String allowedOrigins;
 
     // Endpoints anyone can hit without a token - makes sense, since you can't
     // have a JWT yet if you're the one trying to register/log in in the first place.
@@ -47,6 +63,7 @@ public class SecurityConfig {
             "/api/auth/verify-forgot-password-otp",
             "/api/auth/reset-password",
             "/api/auth/refresh",
+            "/api/auth/oauth2/exchange",
             "/oauth2/**",
             "/login/**",
             "/v3/api-docs/**",
@@ -89,7 +106,15 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 // Run our JWT check BEFORE Spring's own username/password filter,
                 // so a valid Bearer token authenticates the request first.
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                // Constructed here (not injected as a bean) so it's only
+                // ever part of this one filter chain - see JwtAuthFilter's
+                // own javadoc for why it deliberately isn't a @Component.
+                .addFilterBefore(new JwtAuthFilter(jwtService, userDetailsService), UsernamePasswordAuthenticationFilter.class)
+                // Alternate auth path via X-API-Key, for programmatic/service
+                // callers - runs after JwtAuthFilter (each checks for an
+                // authentication already present before doing anything, so
+                // whichever credential is actually supplied wins).
+                .addFilterBefore(new ApiKeyAuthFilter(apiKeyService, userDetailsService), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -116,9 +141,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*")); // TODO tighten before production
+
+        // A wildcard origin combined with allowCredentials(true) lets ANY
+        // website ride a logged-in user's bearer token via a browser
+        // request - set app.cors.allowed-origins explicitly per
+        // environment (e.g. https://app.example.com). Nothing is allowed
+        // by default until it's configured.
+        List<String> origins = allowedOrigins.isBlank()
+                ? List.of()
+                : Arrays.stream(allowedOrigins.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id"));
+        configuration.setExposedHeaders(List.of("X-Request-Id"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

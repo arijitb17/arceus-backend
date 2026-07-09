@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package arceus.gateway;
+
+option java_package = "com.arijit.arceus.grpc.gateway";
+option java_multiple_files = true;
+option java_outer_classname = "GatewayProto";
+
+// A single HTTP header pair. Repeated headers with the same name (e.g.
+// Set-Cookie) are represented as multiple HttpHeader entries.
+message HttpHeader {
+  string name = 1;
+  string value = 2;
+}
+
+// Generic envelope for a REST call the Gateway received from a client and
+// needs to forward to a downstream service over gRPC. This lets the Gateway
+// stay a thin, generic proxy without needing a dedicated RPC per REST
+// endpoint - each service's existing REST controllers remain the single
+// source of truth for request/response shapes.
+message HttpRequestMessage {
+  string request_id = 1;
+  string method = 2;        // GET, POST, PUT, PATCH, DELETE...
+  string path = 3;          // path within the downstream service, e.g. /api/auth/login
+  string query_string = 4;  // raw query string, may be empty
+  repeated HttpHeader headers = 5;
+  bytes body = 6;
+  string user_email = 7;    // populated by the Gateway once the JWT has been validated; empty for public routes
+}
+
+message HttpResponseMessage {
+  int32 status = 1;
+  repeated HttpHeader headers = 2;
+  bytes body = 3;
+}
+
+message PingRequest {}
+
+message PingResponse {
+  bool ok = 1;
+  string service = 2;
+}
+
+// One of these is implemented by each downstream service the Gateway talks
+// to over gRPC. Forward carries the actual REST request through; Ping is
+// used by the Gateway's /health endpoint to report connectivity.
+service AuthGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+service NotificationGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+service AuditGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}

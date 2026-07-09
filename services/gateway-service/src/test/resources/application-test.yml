@@ -1,0 +1,9 @@
+# Used only when tests run (@ActiveProfiles("test")). The Gateway has no
+# database of its own, so there's nothing to swap out for H2 here - this
+# only exists to supply a JWT_SECRET, since application.yml requires one
+# and none of the downstream gRPC services need to actually be running for
+# the context to load (channels connect lazily).
+arceus:
+  gateway:
+    jwt:
+      secret: test-secret-key-for-unit-tests-only-not-for-production-use

@@ -1,0 +1,81 @@
+server:
+  port: 8085
+
+grpc:
+  server:
+    port: ${CACHE_GRPC_PORT:9085}
+
+spring:
+
+  application:
+    name: cache-service
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# --- Arceus Cache Service specific configuration -----------------------
+arceus:
+  cache:
+    # Connection pool for the shared Redis instance every namespace lives in.
+    pool:
+      max-active: ${CACHE_POOL_MAX_ACTIVE:16}
+      max-idle: ${CACHE_POOL_MAX_IDLE:8}
+      min-idle: ${CACHE_POOL_MIN_IDLE:0}
+      max-wait-millis: ${CACHE_POOL_MAX_WAIT_MS:2000}
+
+    # Applied when a request sets ttlPolicy=CUSTOM without its own ttlSeconds,
+    # and as the fallback for any write that specifies no TTL policy at all
+    # but also isn't explicitly NO_EXPIRY. 0 or less means "no default -
+    # caller must specify".
+    default-ttl-seconds: ${CACHE_DEFAULT_TTL_SECONDS:3600}
+
+    # Default serialization format (JSON | STRING | BINARY) when a request
+    # doesn't specify one.
+    default-serialization: ${CACHE_DEFAULT_SERIALIZATION:JSON}
+
+    # Reject any single value (post-serialization, pre-compression) larger
+    # than this. Keeps one oversized object from starving Redis memory that
+    # every other namespace shares.
+    max-object-size-bytes: ${CACHE_MAX_OBJECT_SIZE_BYTES:5242880} # 5 MiB
+
+    compression:
+      enabled: ${CACHE_COMPRESSION_ENABLED:true}
+      # Values at or above this size are gzip-compressed automatically even
+      # if the caller didn't ask for it; callers can also force it per
+      # request with "compress": true regardless of size.
+      auto-threshold-bytes: ${CACHE_COMPRESSION_AUTO_THRESHOLD_BYTES:8192} # 8 KiB
+
+    namespaces:
+      # Logical namespaces every operation must belong to. Keeps "auth:*",
+      # "session:*", etc. from colliding and gives eviction-by-namespace a
+      # safe, well-known set of prefixes to operate on.
+      allowed:
+        - auth
+        - session
+        - otp
+        - user
+        - notification
+        - ratelimit
+      # When true, namespaces outside the allow-list above are still
+      # accepted (useful in early development). Keep false anywhere this
+      # service is shared across teams/services.
+      allow-unlisted: ${CACHE_ALLOW_UNLISTED_NAMESPACES:false}
+
+logging:
+  pattern:
+    level: "%5p [correlationId=%X{correlationId:-}]"
+  level:
+    com.arijit.cacheservice: ${LOG_LEVEL_CACHE_SERVICE:INFO}

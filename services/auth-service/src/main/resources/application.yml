@@ -1,7 +1,20 @@
 server:
   port: 8081
 
+grpc:
+  server:
+    port: ${AUTH_GRPC_PORT:9081}
+
 spring:
+  autoconfigure:
+    exclude:
+      # net.devh's grpc-server starter auto-wires gRPC-level authentication
+      # the moment Spring Security is on the classpath, which this service
+      # doesn't use (its Spring Security setup is for the REST/JWT layer
+      # only). Without this, startup fails looking for a
+      # GrpcAuthenticationReader bean we have no reason to define.
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
+
   application:
     name: auth-service
 
@@ -68,11 +81,27 @@ jwt:
   refresh-token-expiration-ms: 604800000    # 7 days
 
 app:
+  super-admin:
+    # Opt-in: leave both unset (the default) and SuperAdminBootstrap does
+    # nothing. Set both to seed exactly one ROLE_ADMIN account on first
+    # startup - see SuperAdminBootstrap's javadoc for why it's safe to
+    # leave these set across restarts (it never touches an existing account).
+    email: ${SUPER_ADMIN_EMAIL:}
+    password: ${SUPER_ADMIN_PASSWORD:}
+    name: ${SUPER_ADMIN_NAME:Super Admin}
   oauth2:
     # Where the browser lands after a successful Google/GitHub login, with
-    # ?accessToken=...&refreshToken=... appended. Point this at your frontend
-    # once you have one; for now you can just watch it in the browser URL bar.
+    # ?code=<one-time-code> appended. The frontend POSTs that code to
+    # /api/auth/oauth2/exchange to get real tokens back in a response body -
+    # tokens are never put directly in this redirect URL (browser history +
+    # server access logs would otherwise capture them).
     redirect-uri: ${OAUTH2_REDIRECT_URI}
+    exchange-code-expiration-seconds: ${OAUTH2_EXCHANGE_CODE_EXPIRATION_SECONDS:60}
+  cors:
+    # Exact origins allowed to call this service directly with credentials
+    # (relevant mainly for the OAuth2 redirect flow, which isn't proxied
+    # through the Gateway). Comma-separated; empty means nothing is allowed.
+    allowed-origins: ${AUTH_CORS_ALLOWED_ORIGINS:}
 otp:
   expiration-minutes: 5
   reset-token-expiration-minutes: 10
@@ -87,6 +116,8 @@ springdoc:
     path: /swagger-ui.html
 
 logging:
+  pattern:
+    level: "%5p [correlationId=%X{correlationId:-}]"
   level:
-    com.arijit.authservice: DEBUG
+    com.arijit.authservice: ${LOG_LEVEL_AUTH_SERVICE:INFO}
     org.springframework.security: INFO

@@ -7,8 +7,14 @@ import java.time.Instant;
 import java.util.UUID;
 
 // A refresh token lets a client get a new access token without the user
-// logging in again. We store it server-side (unlike the access token) so we
-// can revoke it on logout and check it hasn't already been used/expired.
+// logging in again. We store its hash server-side (unlike the access
+// token) so we can revoke it on logout and check it hasn't already been
+// used/expired - and so that a database read alone can never hand back a
+// usable bearer credential, the same reasoning as never storing a
+// plaintext password. The raw opaque token (see AuthService.generateOpaqueToken)
+// is deliberately NOT a JWT - a refresh token has no reason to be
+// self-describing or verifiable offline; it exists purely as an opaque
+// lookup key into this table.
 @Entity
 @Table(name = "refresh_tokens")
 @Getter
@@ -22,8 +28,8 @@ public class RefreshToken {
     @GeneratedValue
     private UUID id;
 
-    @Column(nullable = false, unique = true, length = 512)
-    private String token;
+    @Column(nullable = false, unique = true, length = 64)
+    private String tokenHash;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id")

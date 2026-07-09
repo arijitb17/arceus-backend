@@ -5,11 +5,14 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -31,16 +34,29 @@ public class JwtService {
     @Value("${jwt.refresh-token-expiration-ms}")
     private long refreshTokenExpirationMs;
 
+    /** Claim name distinguishing an access token from anything else. */
+    public static final String CLAIM_TOKEN_TYPE = "type";
+    public static final String TOKEN_TYPE_ACCESS = "access";
+
+    /** Claim name carrying the user's roles (e.g. ["ROLE_USER"]) on an access token. */
+    public static final String CLAIM_ROLES = "roles";
+
     private SecretKey key() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
     public String generateAccessToken(UserDetails userDetails, Map<String, Object> extraClaims) {
-        return buildToken(userDetails.getUsername(), extraClaims, accessTokenExpirationMs);
-    }
-
-    public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(userDetails.getUsername(), Map.of(), refreshTokenExpirationMs);
+        Map<String, Object> claims = new HashMap<>(extraClaims);
+        claims.put(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS);
+        // Roles ride along on the token itself (rather than requiring a DB
+        // lookup) so both the Gateway and any downstream service can
+        // enforce RBAC from the token alone - see RoleHeaderAuthFilter in
+        // audit-service/notification-service for how the Gateway forwards
+        // this after verifying the token.
+        claims.put(CLAIM_ROLES, userDetails.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .toList());
+        return buildToken(userDetails.getUsername(), claims, accessTokenExpirationMs);
     }
 
     public long getAccessTokenExpirationSeconds() {
@@ -68,24 +84,43 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+    @SuppressWarnings("unchecked")
+    public List<String> extractRoles(String token) {
+        List<?> raw = extractClaim(token, claims -> claims.get(CLAIM_ROLES, List.class));
+        return raw == null ? List.of() : (List<String>) raw;
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractClaim(token, Claims::getExpiration).before(new Date());
+    /**
+     * True only for a token that (a) is validly signed and unexpired, (b)
+     * belongs to the given user, AND (c) was issued as an ACCESS token.
+     * <p>
+     * That last check matters: without it, a refresh token - which is a
+     * validly-signed JWT for the same user - would authenticate against
+     * every protected endpoint just like an access token, defeating the
+     * entire point of having two token types with different lifetimes and
+     * revocation semantics.
+     */
+    public boolean isTokenValid(String token, UserDetails userDetails) {
+        Claims claims = parseClaims(token);
+        String username = claims.getSubject();
+        boolean isAccessToken = TOKEN_TYPE_ACCESS.equals(claims.get(CLAIM_TOKEN_TYPE, String.class));
+        return username.equals(userDetails.getUsername())
+                && isAccessToken
+                && claims.getExpiration().after(new Date());
     }
 
     // parseSignedClaims() re-checks the signature using our secret key - if
     // the token was tampered with, or signed with a different key, this
     // throws instead of silently returning bad data.
-    private <T> T extractClaim(String token, Function<Claims, T> resolver) {
-        Claims claims = Jwts.parser()
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
                 .verifyWith(key())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        return resolver.apply(claims);
+    }
+
+    private <T> T extractClaim(String token, Function<Claims, T> resolver) {
+        return resolver.apply(parseClaims(token));
     }
 }

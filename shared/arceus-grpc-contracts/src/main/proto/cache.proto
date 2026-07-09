@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package arceus.cache;
+
+option java_package = "com.arijit.arceus.grpc.cache";
+option java_multiple_files = true;
+option java_outer_classname = "CacheProto";
+
+import "gateway.proto";
+
+// Mirrors com.arijit.cacheservice.dto.* - the gRPC face of cache-service,
+// used by other in-platform services (Auth, Gateway, Notification, ...)
+// that want a fast, typed, in-cluster path to the cache instead of going
+// through the REST API. Every operation is namespaced; there is no
+// "global" key that isn't scoped to a namespace like "auth", "session",
+// "otp", "user", "notification", "ratelimit", etc.
+//
+// `value` is always the string representation of the payload, interpreted
+// according to `serialization`:
+//   JSON   - value is a JSON document (object/array/scalar) as text
+//   STRING - value is used verbatim
+//   BINARY - value is Base64-encoded raw bytes
+// This keeps the wire format simple (one string field) regardless of
+// storage type or serialization, mirroring the REST CacheRequest/Response
+// DTOs field-for-field.
+
+message CacheKeyRef {
+  string namespace = 1;
+  string key = 2;
+}
+
+message PutRequest {
+  string namespace = 1;
+  string key = 2;
+  string value = 3;
+  string type = 4;                          // STRING (default) | HASH | LIST | SET | SORTED_SET
+  string serialization = 5;                 // JSON (default) | STRING | BINARY
+  bool compress = 6;
+  string ttl_policy = 7;                    // NO_EXPIRY (default) | ABSOLUTE | SLIDING | CUSTOM
+  int64 ttl_seconds = 8;                    // used by SLIDING / CUSTOM
+  int64 absolute_expire_at_epoch_seconds = 9; // used by ABSOLUTE
+  string cache_policy = 10;                 // CACHE_ASIDE (default) | WRITE_THROUGH | WRITE_AROUND
+}
+
+message PutResponse {
+  bool success = 1;
+  string namespace = 2;
+  string key = 3;
+}
+
+message GetResponse {
+  bool found = 1;
+  string namespace = 2;
+  string key = 3;
+  string value = 4;
+  string type = 5;
+  string serialization = 6;
+  int64 ttl_seconds_remaining = 7; // -1 = no expiry, -2 = not found
+}
+
+message DeleteResponse {
+  bool deleted = 1;
+}
+
+message ExistsResponse {
+  bool exists = 1;
+}
+
+message ExpireRequest {
+  string namespace = 1;
+  string key = 2;
+  int64 ttl_seconds = 3;
+}
+
+message ExpireResponse {
+  bool success = 1;
+}
+
+message IncrementRequest {
+  string namespace = 1;
+  string key = 2;
+  int64 delta = 3; // negative delta performs a decrement
+}
+
+message IncrementResponse {
+  int64 value = 1;
+}
+
+message HashSetRequest {
+  string namespace = 1;
+  string key = 2;
+  string field = 3;
+  string value = 4;
+}
+
+message HashSetResponse {
+  bool success = 1;
+}
+
+message HashGetRequest {
+  string namespace = 1;
+  string key = 2;
+  string field = 3;
+}
+
+message HashGetResponse {
+  bool found = 1;
+  string value = 2;
+}
+
+message BulkGetRequest {
+  repeated CacheKeyRef keys = 1;
+}
+
+message BulkGetResponse {
+  repeated GetResponse results = 1;
+}
+
+message BulkPutRequest {
+  repeated PutRequest entries = 1;
+}
+
+message BulkPutResponse {
+  repeated PutResponse results = 1;
+}
+
+service CacheGrpcService {
+  rpc Put(PutRequest) returns (PutResponse);
+  rpc Get(CacheKeyRef) returns (GetResponse);
+  rpc Delete(CacheKeyRef) returns (DeleteResponse);
+  rpc Exists(CacheKeyRef) returns (ExistsResponse);
+  rpc Expire(ExpireRequest) returns (ExpireResponse);
+  rpc Increment(IncrementRequest) returns (IncrementResponse);
+  rpc HashSet(HashSetRequest) returns (HashSetResponse);
+  rpc HashGet(HashGetRequest) returns (HashGetResponse);
+  rpc BulkGet(BulkGetRequest) returns (BulkGetResponse);
+  rpc BulkPut(BulkPutRequest) returns (BulkPutResponse);
+  rpc Ping(arceus.gateway.PingRequest) returns (arceus.gateway.PingResponse);
+}

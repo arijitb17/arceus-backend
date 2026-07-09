@@ -12,12 +12,36 @@ import org.springframework.context.annotation.Configuration;
 
 // Consumer side: this service owns declaring the queue and its binding,
 // since it's the one actually reading from it.
+//
+// Both queues below dead-letter into arceus.events.dlx after
+// spring.rabbitmq.listener.simple.retry's attempts are exhausted (see
+// application.yml) - a poison OTP/event message or a prolonged outage
+// parks it in its own .dlq queue instead of looping forever or being
+// silently dropped.
 @Configuration
 public class RabbitMQConfig {
 
     @Bean
+    public DirectExchange deadLetterExchange() {
+        return new DirectExchange(ArceusEventsTopology.DEAD_LETTER_EXCHANGE);
+    }
+
+    @Bean
     public Queue otpQueue() {
-        return new Queue(OtpMessagingTopology.OTP_QUEUE, true);
+        return QueueBuilder.durable(OtpMessagingTopology.OTP_QUEUE)
+                .withArgument("x-dead-letter-exchange", ArceusEventsTopology.DEAD_LETTER_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", OtpMessagingTopology.OTP_QUEUE)
+                .build();
+    }
+
+    @Bean
+    public Queue otpDeadLetterQueue() {
+        return new Queue(OtpMessagingTopology.OTP_QUEUE + ArceusEventsTopology.DLQ_SUFFIX, true);
+    }
+
+    @Bean
+    public Binding otpDeadLetterBinding(Queue otpDeadLetterQueue, DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(otpDeadLetterQueue).to(deadLetterExchange).with(OtpMessagingTopology.OTP_QUEUE);
     }
 
     @Bean
@@ -40,7 +64,20 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue notificationEventsQueue() {
-        return new Queue(ArceusEventsTopology.NOTIFICATION_QUEUE, true);
+        return QueueBuilder.durable(ArceusEventsTopology.NOTIFICATION_QUEUE)
+                .withArgument("x-dead-letter-exchange", ArceusEventsTopology.DEAD_LETTER_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", ArceusEventsTopology.NOTIFICATION_QUEUE)
+                .build();
+    }
+
+    @Bean
+    public Queue notificationEventsDeadLetterQueue() {
+        return new Queue(ArceusEventsTopology.NOTIFICATION_QUEUE + ArceusEventsTopology.DLQ_SUFFIX, true);
+    }
+
+    @Bean
+    public Binding notificationEventsDeadLetterBinding(Queue notificationEventsDeadLetterQueue, DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(notificationEventsDeadLetterQueue).to(deadLetterExchange).with(ArceusEventsTopology.NOTIFICATION_QUEUE);
     }
 
     @Bean

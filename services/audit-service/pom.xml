@@ -22,14 +22,31 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.arijit</groupId>
             <artifactId>arceus-events</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
+        <!-- gRPC server: exposes AuditGatewayService so the Arceus Gateway
+             can forward requests here without a REST hop over the network. -->
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-starter</artifactId>
+            <version>${grpc-spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.arijit</groupId>
+            <artifactId>arceus-grpc-contracts</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -58,7 +75,7 @@
         <!-- Reads the same root .env as every other service -->
         <dependency>
             <groupId>me.paulschwarz</groupId>
-            <artifactId>springboot4-dotenv</artifactId>
+            <artifactId>springboot3-dotenv</artifactId>
             <version>5.0.1</version>
         </dependency>
 
@@ -70,7 +87,7 @@
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -1,6 +1,8 @@
 package com.arijit.auditservice.exception;
 
+import com.arijit.arceus.events.domain.CorrelationConstants;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -32,6 +34,7 @@ public class GlobalExceptionHandler {
         body.put("status", status.value());
         body.put("error", status.getReasonPhrase());
         body.put("message", message);
+        body.put("correlationId", MDC.get(CorrelationConstants.MDC_KEY));
         return body;
     }
 }

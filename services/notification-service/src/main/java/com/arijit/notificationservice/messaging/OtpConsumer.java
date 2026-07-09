@@ -16,19 +16,27 @@ public class OtpConsumer {
 
     private final EmailService emailService;
     private final PhoneOtpSender phoneOtpSender;
+    private final IdempotencyGuard idempotencyGuard;
 
     @RabbitListener(queues = OtpMessagingTopology.OTP_QUEUE)
     public void handle(OtpNotificationMessage message) {
-        try {
-            switch (message.channel()) {
-                case EMAIL -> emailService.sendOtpEmail(message.recipient(), message.otpCode(), purposeLabel(message));
-                case SMS -> phoneOtpSender.sendOtp(message.recipient());
-            }
-        } catch (Exception e) {
-            // No retry/dead-letter queue yet - logged and dropped. Worth
-            // adding once the base flow across both services is solid.
-            log.error("Failed to deliver OTP via {} to {}: {}", message.channel(), message.recipient(), e.getMessage());
+        if (idempotencyGuard.alreadyProcessed(message.messageId())) {
+            log.info("Skipping redelivered OTP message {} ({} to {}) - already sent",
+                    message.messageId(), message.channel(), message.recipient());
+            return;
         }
+
+        // Deliberately NOT catching a broad Exception here anymore: a
+        // transient failure (SMTP/SMS provider down) should be retried
+        // with backoff (spring.rabbitmq.listener.simple.retry) and, once
+        // exhausted, dead-lettered - not silently logged and dropped,
+        // which used to mean the user's OTP just never arrived with no
+        // way to notice.
+        switch (message.channel()) {
+            case EMAIL -> emailService.sendOtpEmail(message.recipient(), message.otpCode(), purposeLabel(message));
+            case SMS -> phoneOtpSender.sendOtp(message.recipient());
+        }
+        idempotencyGuard.markProcessed(message.messageId());
     }
 
     private String purposeLabel(OtpNotificationMessage message) {

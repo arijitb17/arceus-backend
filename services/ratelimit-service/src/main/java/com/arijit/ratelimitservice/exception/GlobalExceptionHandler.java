@@ -1,6 +1,7 @@
 package com.arijit.ratelimitservice.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -37,12 +38,15 @@ public class GlobalExceptionHandler {
                 .body(errorBody(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong"));
     }
 
+    private static final String MDC_CORRELATION_ID_KEY = "correlationId";
+
     private Map<String, Object> errorBody(HttpStatus status, String message) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", Instant.now().toString());
         body.put("status", status.value());
         body.put("error", status.getReasonPhrase());
         body.put("message", message);
+        body.put("correlationId", MDC.get(MDC_CORRELATION_ID_KEY));
         return body;
     }
 }

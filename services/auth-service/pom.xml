@@ -22,11 +22,11 @@
     </properties>
 
     <dependencies>
-        <!-- NOTE: Boot 4 renamed spring-boot-starter-web -> spring-boot-starter-webmvc.
+        <!-- Boot 3's web starter, back to its classic artifact name.
              security / oauth2-client / data-jpa / validation keep their old names. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
         <!-- Backs the /actuator/health endpoint already permitAll'd in SecurityConfig. -->
@@ -81,13 +81,27 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
+        <!-- gRPC server: exposes AuthGatewayService so the Arceus Gateway can
+             reach this service without going through its own REST layer over
+             the network from the client's perspective. -->
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-starter</artifactId>
+            <version>${grpc-spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.arijit</groupId>
+            <artifactId>arceus-grpc-contracts</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <!-- Reads a single .env file at the project root into Spring's
              Environment at startup, so every ${VAR} placeholder in
              application.yml resolves from there instead of needing each
              secret set individually in IntelliJ's Run Configuration. -->
         <dependency>
             <groupId>me.paulschwarz</groupId>
-            <artifactId>springboot4-dotenv</artifactId>
+            <artifactId>springboot3-dotenv</artifactId>
             <version>5.0.1</version>
         </dependency>
 
@@ -125,7 +139,7 @@
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

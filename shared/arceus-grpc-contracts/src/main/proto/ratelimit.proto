@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package arceus.ratelimit;
+
+option java_package = "com.arijit.arceus.grpc.ratelimit";
+option java_multiple_files = true;
+option java_outer_classname = "RateLimitProto";
+
+import "gateway.proto";
+
+// Mirrors com.arijit.ratelimitservice.dto.RateLimitCheckRequest /
+// RateLimitCheckResponse - kept as a dedicated typed RPC (rather than the
+// generic HttpRequestMessage forwarding used for Auth/Notification/Audit)
+// because this is the one call the Gateway makes on literally every
+// protected request, so it's worth the compile-time safety of a real
+// message type instead of a JSON body.
+message RateLimitCheckRequest {
+  string key = 1;                 // fully-namespaced identity being limited, e.g. "gateway:ip:1.2.3.4"
+  string algorithm = 2;           // "SLIDING_WINDOW" (default) or "TOKEN_BUCKET"
+  int32 limit = 3;                // sliding window: requests allowed per window; token bucket capacity fallback
+  int32 window_seconds = 4;       // sliding window: window length in seconds
+  int32 capacity = 5;             // token bucket: max tokens the bucket can hold
+  double refill_per_second = 6;   // token bucket: tokens added back per second
+}
+
+message RateLimitCheckResponse {
+  bool allowed = 1;
+  int64 remaining_requests = 2;
+  int64 retry_after = 3;
+}
+
+service RateLimitGrpcService {
+  rpc Check(RateLimitCheckRequest) returns (RateLimitCheckResponse);
+  rpc Ping(arceus.gateway.PingRequest) returns (arceus.gateway.PingResponse);
+}

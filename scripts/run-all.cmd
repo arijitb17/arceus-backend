@@ -1,5 +1,5 @@
 @echo off
-REM Builds every module once, then opens each of the 4 services in its own
+REM Builds every module once, then opens each of the 5 services in its own
 REM console window (so you can see each service's logs live and Ctrl+C
 REM any one of them independently).
 REM
@@ -20,12 +20,19 @@ start "auth-service"         cmd /k mvnw.cmd -pl services/auth-service spring-bo
 start "notification-service" cmd /k mvnw.cmd -pl services/notification-service spring-boot:run
 start "audit-service"        cmd /k mvnw.cmd -pl services/audit-service spring-boot:run
 start "ratelimit-service"    cmd /k mvnw.cmd -pl services/ratelimit-service spring-boot:run
+start "cache-service"        cmd /k mvnw.cmd -pl services/cache-service spring-boot:run
+start "gateway-service"      cmd /k mvnw.cmd -pl services/gateway-service spring-boot:run
 
 echo.
-echo All 4 services are starting, each in its own window:
+echo All 6 services are starting, each in its own window:
+echo   gateway-service       http://localhost:8080/health
 echo   auth-service          http://localhost:8081/swagger-ui.html
 echo   notification-service  http://localhost:8082/swagger-ui.html
 echo   audit-service         http://localhost:8083/swagger-ui.html
 echo   ratelimit-service     http://localhost:8084/swagger-ui.html
+echo   cache-service         http://localhost:8085/swagger-ui.html
+echo.
+echo All client traffic should go through gateway-service (port 8080) - the
+echo other 5 ports are for direct/local debugging only.
 echo.
 echo Close each window (or Ctrl+C inside it) to stop that service.

@@ -1,17 +1,19 @@
 package com.arijit.authservice.security;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -24,8 +26,14 @@ import java.io.IOException;
 // If there's no header, or the token's bad, we just let the request continue
 // unauthenticated - it's up to SecurityConfig's authorizeHttpRequests rules
 // to decide whether that's allowed for this particular endpoint.
-@Component
+//
+// NOT a @Component on purpose: SecurityConfig instantiates this directly and
+// adds it into the Spring Security filter chain via addFilterBefore(). If it
+// were also a @Component, Spring Boot's servlet-filter auto-registration
+// would ALSO register it as an independent global filter, running it twice
+// on every request.
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -46,17 +54,28 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         final String jwt = authHeader.substring(7); // strip "Bearer "
-        final String userEmail = jwtService.extractUsername(jwt);
 
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            try {
+                final String userEmail = jwtService.extractUsername(jwt);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
 
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (jwtService.isTokenValid(jwt, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            } catch (JwtException | IllegalArgumentException | UsernameNotFoundException ex) {
+                // Expired, malformed, tampered, wrong-key, or a token type
+                // that isn't actually an access token - any of these mean
+                // "this request just isn't authenticated", not "server
+                // error". Leaving the SecurityContext empty lets
+                // SecurityConfig's authorizeHttpRequests rules produce a
+                // clean 401 for protected endpoints, exactly as if no
+                // header had been sent at all.
+                log.debug("Rejecting invalid access token: {}", ex.getMessage());
             }
         }
 

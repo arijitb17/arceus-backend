@@ -8,6 +8,7 @@ import com.arijit.authservice.exception.ApiException;
 import com.arijit.authservice.messaging.DomainEventPublisher;
 import com.arijit.authservice.messaging.OtpProducer;
 import com.arijit.authservice.otp.EmailOtpService;
+import com.arijit.authservice.otp.OAuth2ExchangeService;
 import com.arijit.authservice.otp.PasswordResetTokenService;
 import com.arijit.authservice.otp.PendingChangeService;
 import com.arijit.authservice.otp.PhoneOtpVerifier;
@@ -42,6 +43,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final java.security.SecureRandom SECURE_RANDOM = new java.security.SecureRandom();
+
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -55,6 +58,7 @@ public class AuthService {
     private final PasswordResetTokenService passwordResetTokenService;
     private final PendingChangeService pendingChangeService;
     private final DomainEventPublisher domainEventPublisher;
+    private final OAuth2ExchangeService oAuth2ExchangeService;
 
     // ---------- Registration & core verification ----------
 
@@ -284,11 +288,31 @@ public class AuthService {
         return new MessageResponse("Phone number updated.");
     }
 
+    // ---------- OAuth2 login (Google/GitHub) ----------
+
+    /**
+     * Turns a single-use code (issued by {@code OAuth2LoginSuccessHandler}
+     * right after the OAuth2 redirect) into real tokens. Kept separate from
+     * that redirect step specifically so tokens never travel in a URL -
+     * see {@link OAuth2ExchangeService}'s javadoc for why.
+     */
+    @Transactional
+    public AuthResponse exchangeOAuth2Code(String code) {
+        var userId = oAuth2ExchangeService.consumeCode(code)
+                .orElseThrow(() -> new ApiException("Invalid or expired exchange code", HttpStatus.UNAUTHORIZED));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException("Account no longer exists", HttpStatus.NOT_FOUND));
+
+        domainEventPublisher.publish(LoginSuccessfulEvent.now(user.getId(), user.getEmail()));
+        return issueTokens(user);
+    }
+
     // ---------- Refresh / logout ----------
 
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
-        RefreshToken stored = refreshTokenRepository.findByToken(request.refreshToken())
+        RefreshToken stored = refreshTokenRepository.findByTokenHash(hashToken(request.refreshToken()))
                 .orElseThrow(() -> new ApiException("Invalid refresh token", HttpStatus.UNAUTHORIZED));
 
         if (stored.isExpired()) {
@@ -300,8 +324,14 @@ public class AuthService {
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String newAccessToken = jwtService.generateAccessToken(userDetails, Map.of("name", user.getName()));
 
+        // Rotated, not reused: the old refresh token is deleted and a brand
+        // new one issued on every refresh call. If a stolen refresh token
+        // is ever used by an attacker, the legitimate user's next refresh
+        // attempt will fail with "invalid refresh token" - a signal worth
+        // acting on, rather than both parties silently sharing one token
+        // indefinitely.
         refreshTokenRepository.delete(stored);
-        String newRefreshToken = jwtService.generateRefreshToken(userDetails);
+        String newRefreshToken = generateOpaqueToken();
         saveRefreshToken(user, newRefreshToken);
 
         return AuthResponse.of(newAccessToken, newRefreshToken, jwtService.getAccessTokenExpirationSeconds());
@@ -309,7 +339,7 @@ public class AuthService {
 
     @Transactional
     public void logout(RefreshTokenRequest request) {
-        refreshTokenRepository.findByToken(request.refreshToken())
+        refreshTokenRepository.findByTokenHash(hashToken(request.refreshToken()))
                 .ifPresent(stored -> {
                     User user = stored.getUser();
                     refreshTokenRepository.delete(stored);
@@ -321,26 +351,52 @@ public class AuthService {
 
     private void sendEmailOtp(String email, String name, OtpPurpose purpose) {
         String otp = emailOtpService.generateAndStore(email, purpose);
-        otpProducer.publish(new OtpNotificationMessage(OtpChannel.EMAIL, email, otp, purpose, name));
+        otpProducer.publish(OtpNotificationMessage.of(OtpChannel.EMAIL, email, otp, purpose, name));
     }
 
     private void sendPhoneOtp(String phoneNumber) {
-        otpProducer.publish(new OtpNotificationMessage(OtpChannel.SMS, phoneNumber, null, com.arijit.arceus.events.otp.OtpPurpose.PHONE_VERIFICATION, null));
+        otpProducer.publish(OtpNotificationMessage.of(OtpChannel.SMS, phoneNumber, null, com.arijit.arceus.events.otp.OtpPurpose.PHONE_VERIFICATION, null));
     }
 
     private AuthResponse issueTokens(User user) {
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String accessToken = jwtService.generateAccessToken(userDetails, Map.of("name", user.getName()));
-        String refreshToken = jwtService.generateRefreshToken(userDetails);
+        String refreshToken = generateOpaqueToken();
         saveRefreshToken(user, refreshToken);
         return AuthResponse.of(accessToken, refreshToken, jwtService.getAccessTokenExpirationSeconds());
     }
 
-    private void saveRefreshToken(User user, String token) {
+    private void saveRefreshToken(User user, String rawToken) {
         refreshTokenRepository.save(RefreshToken.builder()
-                .token(token)
+                .tokenHash(hashToken(rawToken))
                 .user(user)
                 .expiryDate(Instant.now().plusMillis(jwtService.getRefreshTokenExpirationMs()))
                 .build());
+    }
+
+    // Deliberately NOT a JWT - a refresh token has no reason to be
+    // self-describing or verifiable offline; it's purely an opaque lookup
+    // key into refresh_tokens, matching how ApiKeyService generates keys.
+    private static String generateOpaqueToken() {
+        byte[] randomBytes = new byte[32];
+        SECURE_RANDOM.nextBytes(randomBytes);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    }
+
+    // Only the hash is ever persisted - a stolen database dump alone can't
+    // be replayed as a working refresh token, the same reasoning as never
+    // storing a plaintext password.
+    private static String hashToken(String rawToken) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(rawToken.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e); // SHA-256 is guaranteed available on every JVM
+        }
     }
 }

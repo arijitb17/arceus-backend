@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -21,6 +22,7 @@ import java.util.UUID;
 @RequestMapping("/audit-logs")
 @RequiredArgsConstructor
 @Tag(name = "Audit Logs", description = "Centralized, read-only audit trail built from every domain event on the platform")
+@PreAuthorize("hasRole('ADMIN')")
 public class AuditLogController {
 
     private final AuditLogRepository auditLogRepository;

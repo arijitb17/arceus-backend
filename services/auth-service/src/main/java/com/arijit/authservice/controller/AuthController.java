@@ -136,6 +136,13 @@ public class AuthController {
         return ResponseEntity.ok(authService.refresh(request));
     }
 
+    @RateLimited(bucket = "oauth2-exchange", key = "#request.code()", limit = 5, windowSeconds = 60)
+    @PostMapping("/oauth2/exchange")
+    @Operation(summary = "Exchange the single-use code from the OAuth2 redirect for real tokens")
+    public ResponseEntity<AuthResponse> exchangeOAuth2Code(@Valid @RequestBody OAuth2ExchangeRequest request) {
+        return ResponseEntity.ok(authService.exchangeOAuth2Code(request.code()));
+    }
+
     @PostMapping("/logout")
     @Operation(summary = "Invalidate a refresh token")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {

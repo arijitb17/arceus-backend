@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.0</version>
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -18,15 +18,22 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- net.devh's grpc-spring-boot-starter (grpc-server/grpc-client) - the
+             de facto standard gRPC integration for Spring Boot 3.x, since Spring
+             Boot itself has no built-in gRPC support until 4.1. -->
+        <grpc-spring.version>3.1.0.RELEASE</grpc-spring.version>
     </properties>
 
     <modules>
         <module>shared/arceus-events</module>
         <module>shared/arceus-ratelimit</module>
+        <module>shared/arceus-grpc-contracts</module>
         <module>services/auth-service</module>
         <module>services/notification-service</module>
         <module>services/audit-service</module>
         <module>services/ratelimit-service</module>
+        <module>services/cache-service</module>
+        <module>services/gateway-service</module>
     </modules>
 
 </project>

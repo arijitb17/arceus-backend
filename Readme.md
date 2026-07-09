@@ -211,18 +211,18 @@ Stretch Goals
 
 Features
 
-- [ ] GET
-- [ ] SET
-- [ ] DELETE
-- [ ] TTL
-- [ ] Statistics
-- [ ] Cache Namespaces
-- [ ] Health Monitoring
+- [x] GET
+- [x] SET
+- [x] DELETE
+- [x] TTL
+- [x] Statistics
+- [x] Cache Namespaces
+- [x] Health Monitoring
 
 Stretch Goals
 
 - [ ] L1 Local Cache
-- [ ] Cache Eviction Policies
+- [x] Cache Eviction Policies
 - [ ] Distributed Lock
 
 ---
@@ -363,8 +363,8 @@ This project is designed to master:
 | Notification (POST /notifications, templates, retry, history) | ✅ |
 | Audit Logging (GET /audit-logs, consumes every domain event) | ✅ |
 | Rate Limiter (POST /check, Sliding Window + Token Bucket) | ✅ |
-| API Gateway | ⏳ |
-| Cache | ⏳ |
+| API Gateway (REST entry point, gRPC to services, JWT + rate limit + logging + /health) | ✅ v1 |
+| Cache (namespaced REST + gRPC cache platform, TTL policies, stats) | ✅ v1 |
 | Scheduler | ⏳ |
 | Feature Flags | ⏳ |
 | Deployment | ⏳ |

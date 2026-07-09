@@ -1,7 +1,17 @@
 server:
   port: 8082
 
+grpc:
+  server:
+    port: ${NOTIFICATION_GRPC_PORT:9082}
+
 spring:
+  autoconfigure:
+    exclude:
+      # See auth-service's application.yml for why: Spring Security here is
+      # for the REST layer only, not gRPC.
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
+
   application:
     name: notification-service
 
@@ -32,6 +42,15 @@ spring:
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
     virtual-host: ${RABBITMQ_VHOST}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 1000
+          multiplier: 2.0
+          max-interval: 30000
+          max-attempts: 5
+        default-requeue-rejected: false
 
   mail:
     host: smtp.gmail.com
@@ -70,5 +89,7 @@ management:
         include: health,info
 
 logging:
+  pattern:
+    level: "%5p [correlationId=%X{correlationId:-}]"
   level:
-    com.arijit.notificationservice: DEBUG
+    com.arijit.notificationservice: ${LOG_LEVEL_NOTIFICATION_SERVICE:INFO}

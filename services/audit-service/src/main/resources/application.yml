@@ -1,7 +1,17 @@
 server:
   port: 8083
 
+grpc:
+  server:
+    port: ${AUDIT_GRPC_PORT:9083}
+
 spring:
+  autoconfigure:
+    exclude:
+      # See auth-service's application.yml for why: Spring Security here is
+      # for the REST layer only, not gRPC.
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
+
   application:
     name: audit-service
 
@@ -26,6 +36,18 @@ spring:
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
     virtual-host: ${RABBITMQ_VHOST}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 1000
+          multiplier: 2.0
+          max-interval: 30000
+          max-attempts: 5
+        # After retry is exhausted, reject without requeueing so the
+        # message dead-letters (see RabbitMQConfig's DLQ wiring) instead of
+        # looping through this same consumer forever.
+        default-requeue-rejected: false
 
 springdoc:
   swagger-ui:
@@ -38,5 +60,12 @@ management:
         include: health,info
 
 logging:
+  pattern:
+    # Appends the correlation id (set by CorrelationIdFilter) right after
+    # the log level on every line, using Spring Boot's default console
+    # appender - no custom logback.xml needed. Same property, same key
+    # name, in every service, so a `grep correlationId=<id>` across all
+    # five services' logs reconstructs one request's full trace.
+    level: "%5p [correlationId=%X{correlationId:-}]"
   level:
-    com.arijit.auditservice: DEBUG
+    com.arijit.auditservice: ${LOG_LEVEL_AUDIT_SERVICE:INFO}
