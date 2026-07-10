@@ -266,15 +266,19 @@ Stretch Goals
 
 Features
 
-- [ ] Feature Toggle
-- [ ] User Targeting
-- [ ] Percentage Rollout
-- [ ] Environment Management
+- [x] Feature Toggle (Boolean/Integer/Long/Double/String/JSON, REST + gRPC, RBAC + internal-token auth)
+- [ ] User Targeting (reserved TargetType, not yet implemented)
+- [x] Percentage Rollout (deterministic per-caller bucketing)
+- [x] Environment Management (per-environment values + GLOBAL scope)
+- [x] Scheduled Activation/Deactivation (delegated to scheduler-service)
+- [x] Version History + Audit History
+- [x] Redis Cache (optional, graceful degradation)
 
 Stretch Goals
 
 - [ ] A/B Testing
 - [ ] Canary Releases
+- [ ] Role/Tenant Targeting
 
 ---
 
@@ -366,7 +370,7 @@ This project is designed to master:
 | API Gateway (REST entry point, gRPC to services, JWT + rate limit + logging + /health) | ✅ v1 |
 | Cache (namespaced REST + gRPC cache platform, TTL policies, stats) | ✅ v1 |
 | Scheduler (REST + gRPC + RabbitMQ job scheduling: one-time/delayed/cron/recurring, retry+backoff, DLQ) | ✅ v1 |
-| Feature Flags | ⏳ |
+| Feature Flags (REST + gRPC, boolean/int/long/double/string/JSON, per-environment values, percentage rollout, scheduled activation via scheduler-service, version + audit history, Redis cache) | ✅ v1 |
 | Deployment | ⏳ |
 | Monitoring | ⏳ |
 

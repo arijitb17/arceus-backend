@@ -1,0 +1,109 @@
+server:
+  port: ${FEATURE_FLAG_PORT:8087}
+
+grpc:
+  server:
+    port: ${FEATURE_FLAG_GRPC_PORT:9087}
+  client:
+    channels:
+      # Used by FlagSchedulingService to register the HTTP_CALLBACK jobs
+      # that drive scheduled activation/deactivation.
+      scheduler:
+        address: static://${SCHEDULER_GRPC_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
+        negotiation-type: plaintext
+
+spring:
+  autoconfigure:
+    exclude:
+      # Spring Security here is for the REST layer only, not gRPC - gRPC
+      # auth is handled by GrpcAuthInterceptor instead (see
+      # scheduler-service's application.yml for the same exclusion and why).
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
+
+  application:
+    name: feature-flag-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${FEATURE_FLAG_DB_NAME:arceus_feature_flag}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # fine for pre-release dev; move to Flyway + validate before v1.0.0
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 1000
+          multiplier: 2.0
+          max-interval: 30000
+          max-attempts: 5
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# --- Arceus Feature Flag Service specific configuration -----------------
+arceus:
+  feature-flag:
+    cache:
+      # Redis is optional per the platform stack - if disabled or
+      # unreachable, evaluation falls back to reading Postgres directly
+      # (see FlagCacheService). Never a hard dependency for correctness,
+      # only for latency.
+      enabled: ${FEATURE_FLAG_CACHE_ENABLED:true}
+      ttl-seconds: ${FEATURE_FLAG_CACHE_TTL_SECONDS:60}
+
+    internal:
+      # Shared secret every internal caller (REST or gRPC) must present -
+      # see InternalTokenAuthFilter / GrpcAuthInterceptor. Also what the
+      # scheduler-callback endpoints check as a query parameter (see
+      # FlagScheduleCallbackController). Must match exactly on every
+      # calling service's side, and match scheduler-service's own
+      # arceus.scheduler.internal.api-token if this instance also acts as
+      # a scheduler-service caller in a shared environment.
+      api-token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}
+
+    scheduling:
+      # Delegates scheduled activation/deactivation to scheduler-service
+      # rather than polling for due flags itself - see
+      # FlagSchedulingService. Disabling this simply means
+      # activateAt/deactivateAt on a flag are stored but never acted on.
+      enabled: ${FEATURE_FLAG_SCHEDULING_ENABLED:true}
+      # Base URL scheduler-service's HTTP_CALLBACK jobs use to call back
+      # into this service - must be reachable from scheduler-service's pod/host.
+      callback-base-url: ${FEATURE_FLAG_CALLBACK_BASE_URL:http://localhost:8087}
+
+logging:
+  pattern:
+    # Same correlation-id convention as every other Arceus service - see
+    # audit-service's application.yml for the full rationale.
+    level: "%5p [correlationId=%X{correlationId:-}]"
+  level:
+    com.arijit.featureflagservice: ${LOG_LEVEL_FEATURE_FLAG_SERVICE:INFO}

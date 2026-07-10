@@ -34,6 +34,7 @@
         <module>services/ratelimit-service</module>
         <module>services/cache-service</module>
         <module>services/scheduler-service</module>
+        <module>services/feature-flag-service</module>
         <module>services/gateway-service</module>
     </modules>
 

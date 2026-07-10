@@ -62,5 +62,17 @@ public final class ArceusEventsTopology {
     public static final String RK_JOB_CANCELLED = "job.cancelled";
     public static final String RK_JOB_EXPIRED = "job.expired";
 
+    // feature-flag-service's config-change events. Same reasoning as the
+    // job.* keys above: published onto this one shared exchange so
+    // audit-service's existing "#" binding captures every flag mutation
+    // for free, and so any future subscriber (e.g. a dashboard, or a
+    // service that wants to react to a flag flipping) can bind its own
+    // queue without feature-flag-service ever needing to know it exists.
+    public static final String RK_FLAG_CREATED = "flag.created";
+    public static final String RK_FLAG_UPDATED = "flag.updated";
+    public static final String RK_FLAG_ENABLED = "flag.enabled";
+    public static final String RK_FLAG_DISABLED = "flag.disabled";
+    public static final String RK_FLAG_DELETED = "flag.deleted";
+
     private ArceusEventsTopology() {}
 }

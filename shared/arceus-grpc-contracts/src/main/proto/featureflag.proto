@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package arceus.featureflag;
+
+option java_package = "com.arijit.arceus.grpc.featureflag";
+option java_multiple_files = true;
+option java_outer_classname = "FeatureFlagProto";
+
+import "gateway.proto";
+
+// Mirrors com.arijit.featureflagservice.dto.* - the gRPC face of
+// feature-flag-service, used by other in-platform services (Gateway, Auth,
+// Notification, RateLimiter, ...) that want a fast, typed, in-cluster path
+// to read/manage flags instead of going through the REST API. Field shapes
+// intentionally match CreateFlagRequest/FlagResponse field-for-field so
+// REST and gRPC callers get identical behavior and validation.
+//
+// EvaluateFlag is the one RPC most callers actually use at runtime - a
+// single low-latency call (backed by feature-flag-service's own cache)
+// that resolves a flag's effective value for the caller's environment,
+// applying percentage rollout if configured. CreateFlag/UpdateFlag/
+// DeleteFlag/GetFlag/ListFlags exist for admin tooling and other services
+// that manage their own flags programmatically.
+//
+// value is carried as a JSON-encoded string regardless of flag_type
+// (a bare boolean/number/string is valid JSON on its own), so this proto
+// never needs a oneof per type and stays stable as new types are added.
+
+message Flag {
+  string id = 1;
+  string key = 2;
+  string name = 3;
+  string description = 4;
+  string flag_type = 5;          // BOOLEAN | INTEGER | LONG | DOUBLE | STRING | JSON
+  string environment = 6;        // DEVELOPMENT | STAGING | PRODUCTION | GLOBAL
+  string target_type = 7;        // GLOBAL | ENVIRONMENT | USER | ROLE | TENANT (only GLOBAL/ENVIRONMENT usable today)
+  string value = 8;               // JSON-encoded effective value
+  string status = 9;             // ENABLED | DISABLED
+  int32 rollout_percentage = 10; // 0-100, 100 = fully rolled out
+  int64 activate_at_epoch_millis = 11;   // 0 = no scheduled activation
+  int64 deactivate_at_epoch_millis = 12; // 0 = no scheduled deactivation
+  string created_by = 13;
+  string updated_by = 14;
+  int64 created_at_epoch_millis = 15;
+  int64 updated_at_epoch_millis = 16;
+  int64 version = 17;
+}
+
+message CreateFlagRequest {
+  string key = 1;
+  string name = 2;
+  string description = 3;
+  string flag_type = 4;
+  string environment = 5;
+  string target_type = 6;        // optional, defaults to ENVIRONMENT
+  string value = 7;               // JSON-encoded
+  int32 rollout_percentage = 8;  // optional, defaults to 100
+  int64 activate_at_epoch_millis = 9;
+  int64 deactivate_at_epoch_millis = 10;
+  string actor = 11;              // who is making this change, for the audit trail
+}
+
+message UpdateFlagRequest {
+  string key = 1;
+  string environment = 2;
+  string name = 3;
+  string description = 4;
+  string value = 5;
+  int32 rollout_percentage = 6;
+  int64 activate_at_epoch_millis = 7;
+  int64 deactivate_at_epoch_millis = 8;
+  string actor = 9;
+}
+
+message DeleteFlagRequest {
+  string key = 1;
+  string environment = 2;
+  string actor = 3;
+}
+
+message FlagIdentifier {
+  string key = 1;
+  string environment = 2;
+}
+
+message GetFlagResponse {
+  bool found = 1;
+  Flag flag = 2;
+}
+
+message ListFlagsRequest {
+  string environment = 1; // optional filter
+  string status = 2;      // optional filter
+  int32 page = 3;
+  int32 size = 4;
+}
+
+message ListFlagsResponse {
+  repeated Flag flags = 1;
+  int64 total_elements = 2;
+  int32 total_pages = 3;
+  int32 page = 4;
+  int32 size = 5;
+}
+
+message FlagActionResponse {
+  bool success = 1;
+  string message = 2;
+  Flag flag = 3;
+}
+
+// bucket_key is the caller-supplied identity used to deterministically
+// bucket percentage rollouts (e.g. a user or session id) - without one,
+// rollout evaluation falls back to random-per-call, which is rarely what
+// a caller wants. Full user/role/tenant targeting is a future extension;
+// bucket_key today only feeds the rollout-percentage hash, nothing else.
+message EvaluateFlagRequest {
+  string key = 1;
+  string environment = 2;
+  string bucket_key = 3;
+  string default_value = 4; // JSON-encoded fallback if the flag doesn't exist or is disabled
+}
+
+message EvaluateFlagResponse {
+  bool found = 1;
+  bool enabled = 2;
+  string value = 3;       // JSON-encoded effective value (default_value if not found/enabled)
+  string flag_type = 4;
+  bool from_cache = 5;
+}
+
+service FeatureFlagGrpcService {
+  rpc CreateFlag(CreateFlagRequest) returns (FlagActionResponse);
+  rpc UpdateFlag(UpdateFlagRequest) returns (FlagActionResponse);
+  rpc DeleteFlag(DeleteFlagRequest) returns (FlagActionResponse);
+  rpc GetFlag(FlagIdentifier) returns (GetFlagResponse);
+  rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse);
+  rpc EvaluateFlag(EvaluateFlagRequest) returns (EvaluateFlagResponse);
+  rpc Ping(arceus.gateway.PingRequest) returns (arceus.gateway.PingResponse);
+}
