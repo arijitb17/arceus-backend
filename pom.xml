@@ -33,6 +33,7 @@
         <module>services/audit-service</module>
         <module>services/ratelimit-service</module>
         <module>services/cache-service</module>
+        <module>services/scheduler-service</module>
         <module>services/gateway-service</module>
     </modules>
 

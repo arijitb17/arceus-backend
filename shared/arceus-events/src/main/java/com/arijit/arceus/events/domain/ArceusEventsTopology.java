@@ -49,5 +49,18 @@ public final class ArceusEventsTopology {
     public static final String RK_API_KEY_CREATED = "apikey.created";
     public static final String RK_API_KEY_REVOKED = "apikey.revoked";
 
+    // scheduler-service's job lifecycle events. Published onto this same
+    // exchange (rather than a dedicated one) so audit-service's existing
+    // "#" binding picks them up for free, and so any other service can
+    // subscribe to a job's lifecycle the exact same way it already
+    // subscribes to auth-service's events - one bus, one mental model,
+    // regardless of which service happens to be the publisher.
+    public static final String RK_JOB_SCHEDULED = "job.scheduled";
+    public static final String RK_JOB_STARTED = "job.started";
+    public static final String RK_JOB_COMPLETED = "job.completed";
+    public static final String RK_JOB_FAILED = "job.failed";
+    public static final String RK_JOB_CANCELLED = "job.cancelled";
+    public static final String RK_JOB_EXPIRED = "job.expired";
+
     private ArceusEventsTopology() {}
 }

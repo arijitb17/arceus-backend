@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package arceus.scheduler;
+
+option java_package = "com.arijit.arceus.grpc.scheduler";
+option java_multiple_files = true;
+option java_outer_classname = "SchedulerProto";
+
+import "gateway.proto";
+
+// Mirrors com.arijit.schedulerservice.dto.* - the gRPC face of
+// scheduler-service, used by other in-platform services (Auth,
+// Notification, Audit, Cache, ...) that want a fast, typed, in-cluster path
+// to schedule/manage jobs instead of going through the REST API. Field
+// shapes intentionally match CreateJobRequest/JobResponse field-for-field
+// so REST and gRPC callers get identical behavior and validation.
+//
+// A job's actual work never runs inside scheduler-service itself -
+// scheduler-service only knows *when* to fire and *where* to deliver the
+// trigger. Every job declares an execution_target of either
+// HTTP_CALLBACK (scheduler-service POSTs `payload` to `callback_url` when
+// due) or MESSAGE_PUBLISH (scheduler-service publishes `payload` to
+// `target_exchange`/`target_routing_key` when due) - the owning service's
+// own handler does the rest. This is what makes the service reusable by
+// any caller without scheduler-service needing to know anything about
+// session cleanup, cache warmup, deployment rollbacks, or whatever else a
+// job is actually for.
+
+message Job {
+  string id = 1;
+  string job_name = 2;
+  string service_name = 3;
+  string trigger_type = 4;              // IMMEDIATE | DELAY | CRON | FIXED_RATE | FIXED_DELAY
+  string cron_expression = 5;           // used by CRON
+  int64 delay_ms = 6;                   // used by DELAY
+  int64 fixed_rate_ms = 7;              // used by FIXED_RATE
+  int64 fixed_delay_ms = 8;             // used by FIXED_DELAY
+  string execution_target = 9;          // HTTP_CALLBACK | MESSAGE_PUBLISH
+  string callback_url = 10;             // used by HTTP_CALLBACK
+  string target_exchange = 11;          // used by MESSAGE_PUBLISH
+  string target_routing_key = 12;       // used by MESSAGE_PUBLISH
+  string payload = 13;                  // JSON text delivered to the target verbatim
+  int32 priority = 14;
+  string status = 15;                   // PENDING | SCHEDULED | RUNNING | COMPLETED | FAILED | RETRYING | CANCELLED | EXPIRED | PAUSED
+  int32 retry_count = 16;
+  int32 max_retries = 17;
+  int64 retry_delay_ms = 18;
+  double backoff_multiplier = 19;
+  bool exponential_backoff = 20;
+  string correlation_id = 21;
+  int64 created_at_epoch_millis = 22;
+  int64 next_fire_at_epoch_millis = 23; // 0 = none scheduled (terminal state)
+  int64 started_at_epoch_millis = 24;
+  int64 completed_at_epoch_millis = 25;
+  int64 expires_at_epoch_millis = 26;   // 0 = never expires
+  string last_error = 27;
+}
+
+message ScheduleJobRequest {
+  string job_name = 1;
+  string service_name = 2;
+  string trigger_type = 3;
+  string cron_expression = 4;
+  int64 delay_ms = 5;
+  int64 fixed_rate_ms = 6;
+  int64 fixed_delay_ms = 7;
+  string execution_target = 8;
+  string callback_url = 9;
+  string target_exchange = 10;
+  string target_routing_key = 11;
+  string payload = 12;
+  int32 priority = 13;
+  int32 max_retries = 14;
+  int64 retry_delay_ms = 15;
+  double backoff_multiplier = 16;
+  bool exponential_backoff = 17;
+  string correlation_id = 18;
+  int64 expires_at_epoch_millis = 19;
+}
+
+message ScheduleJobResponse {
+  Job job = 1;
+}
+
+// One id in, one job-plus-outcome out - shared by every action that only
+// ever needs the job's id (Cancel, Pause, Resume, Retry, Get).
+message JobIdRequest {
+  string id = 1;
+}
+
+message JobActionResponse {
+  bool success = 1;
+  string message = 2;
+  Job job = 3;
+}
+
+message GetJobResponse {
+  bool found = 1;
+  Job job = 2;
+}
+
+message ListJobsRequest {
+  string service_name = 1; // optional filter, empty = any
+  string status = 2;       // optional filter, empty = any
+  int32 page = 3;          // 0-based
+  int32 size = 4;
+}
+
+message ListJobsResponse {
+  repeated Job jobs = 1;
+  int64 total_elements = 2;
+  int32 total_pages = 3;
+  int32 page = 4;
+  int32 size = 5;
+}
+
+service SchedulerGrpcService {
+  rpc ScheduleJob(ScheduleJobRequest) returns (ScheduleJobResponse);
+  rpc CancelJob(JobIdRequest) returns (JobActionResponse);
+  rpc PauseJob(JobIdRequest) returns (JobActionResponse);
+  rpc ResumeJob(JobIdRequest) returns (JobActionResponse);
+  rpc RetryJob(JobIdRequest) returns (JobActionResponse);
+  rpc GetJob(JobIdRequest) returns (GetJobResponse);
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+  rpc Ping(arceus.gateway.PingRequest) returns (arceus.gateway.PingResponse);
+}

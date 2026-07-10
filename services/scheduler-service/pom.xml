@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.arijit</groupId>
+        <artifactId>arceus-platform</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>scheduler-service</artifactId>
+    <packaging>jar</packaging>
+    <name>scheduler-service</name>
+    <description>
+        Arceus Scheduler Service - the one reusable job scheduling platform
+        every Arceus service delegates one-time, delayed, cron, and
+        recurring background work to instead of rolling its own
+        @Scheduled methods. Exposes REST, gRPC, and RabbitMQ surfaces;
+        tracks every job through PENDING/SCHEDULED/RUNNING/COMPLETED/
+        FAILED/RETRYING/CANCELLED/EXPIRED/PAUSED with retry, exponential
+        backoff, and a dead-letter queue for exhausted jobs.
+
+        A job's actual work never runs inside this service - each job
+        declares an HTTP callback or a RabbitMQ publish target, and the
+        owning service's own handler does the rest. This module is
+        deliberately a single-node poller (no leader election, no Quartz
+        clustering, no Kubernetes CronJobs, no workflow orchestration) -
+        structured so those can be layered on later without changing the
+        public REST/gRPC/RabbitMQ contracts.
+    </description>
+
+    <properties>
+        <springdoc.version>2.8.5</springdoc.version>
+    </properties>
+
+    <dependencies>
+        <!-- gRPC server: exposes SchedulerGrpcService for in-cluster callers
+             (any service that wants a typed, low overhead path instead of
+             the REST API) -->
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-starter</artifactId>
+            <version>${grpc-spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.arijit</groupId>
+            <artifactId>arceus-grpc-contracts</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.arijit</groupId>
+            <artifactId>arceus-events</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- Own database: job definitions, execution history, dead letters.
+             Per the platform rule "services never access another service's
+             database", this is a separate schema from every other service's. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- HTTP_CALLBACK job targets are invoked with a plain blocking
+             RestClient - no reactive stack needed elsewhere in this service. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>springboot3-dotenv</artifactId>
+            <version>5.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.amqp</groupId>
+            <artifactId>spring-rabbit-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -365,7 +365,7 @@ This project is designed to master:
 | Rate Limiter (POST /check, Sliding Window + Token Bucket) | ✅ |
 | API Gateway (REST entry point, gRPC to services, JWT + rate limit + logging + /health) | ✅ v1 |
 | Cache (namespaced REST + gRPC cache platform, TTL policies, stats) | ✅ v1 |
-| Scheduler | ⏳ |
+| Scheduler (REST + gRPC + RabbitMQ job scheduling: one-time/delayed/cron/recurring, retry+backoff, DLQ) | ✅ v1 |
 | Feature Flags | ⏳ |
 | Deployment | ⏳ |
 | Monitoring | ⏳ |
