@@ -115,6 +115,19 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # 'metrics' + show-details below are what let monitoring-service's
+        # ServiceHealthCollector/ServiceMetricsCollector see this service's
+        # db/redis/rabbit component breakdown and JVM/CPU/request metrics -
+        # see monitoring-service's application.yml for the polling side.
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
 logging:
   pattern:
     level: "%5p [correlationId=%X{correlationId:-}]"

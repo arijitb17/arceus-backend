@@ -1,0 +1,149 @@
+server:
+  port: ${MONITORING_PORT:8088}
+
+grpc:
+  server:
+    port: ${MONITORING_GRPC_PORT:9088}
+
+spring:
+  autoconfigure:
+    exclude:
+      # Spring Security here is for the REST layer only, not gRPC - gRPC
+      # auth is handled by GrpcAuthInterceptor instead (see
+      # feature-flag-service's application.yml for the same exclusion and why).
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
+
+  application:
+    name: monitoring-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${MONITORING_DB_NAME:arceus_monitoring}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # fine for pre-release dev; move to Flyway + validate before v1.0.0
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 1000
+          multiplier: 2.0
+          max-interval: 30000
+          max-attempts: 5
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # monitoring-service is the one service that also exposes
+        # /actuator/prometheus today, so Prometheus can scrape it alongside
+        # every service it monitors (see this module's pom.xml).
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# --- Arceus Monitoring Service specific configuration --------------------
+arceus:
+  monitoring:
+    internal:
+      # Shared secret every internal caller (REST or gRPC) must present -
+      # see InternalTokenAuthFilter / GrpcAuthInterceptor.
+      api-token: ${MONITORING_INTERNAL_API_TOKEN:changeme-monitoring-internal-token}
+
+    polling:
+      # How often ServicePollingService sweeps every target below.
+      interval-ms: ${MONITORING_POLLING_INTERVAL_MS:15000}
+      # Per-request connect/read timeout applied to every Actuator call -
+      # must stay well under interval-ms so one hung service can never
+      # stall the whole cycle (see RestClientConfig).
+      http-timeout-ms: ${MONITORING_POLLING_TIMEOUT_MS:2000}
+
+    thresholds:
+      # Starting values for the built-in alert rules DefaultAlertRuleSeeder
+      # creates on first startup - every rule remains editable afterwards
+      # via PUT /alerts/{id}, these are just sane defaults.
+      cpu-percent: ${MONITORING_THRESHOLD_CPU_PERCENT:80}
+      memory-percent: ${MONITORING_THRESHOLD_MEMORY_PERCENT:85}
+      error-rate-percent: ${MONITORING_THRESHOLD_ERROR_RATE_PERCENT:5}
+      response-time-ms: ${MONITORING_THRESHOLD_RESPONSE_TIME_MS:1000}
+
+    history:
+      retention-days: ${MONITORING_HISTORY_RETENTION_DAYS:30}
+      cleanup-cron: ${MONITORING_HISTORY_CLEANUP_CRON:0 30 3 * * *}
+
+    # One entry per monitored service - add a new one here (and to the
+    # `targets:` block of every deployment's env) the day a new Arceus
+    # service joins the platform; nothing else in this service needs to
+    # change. base-url is polled for /actuator/health and
+    # /actuator/metrics/*; grpc-host/grpc-port back the TCP-level gRPC
+    # connectivity check (see ServiceHealthCollector).
+    targets:
+      gateway-service:
+        base-url: ${GATEWAY_BASE_URL:http://localhost:8090}
+        grpc-host: ${GATEWAY_GRPC_HOST:}
+        grpc-port: ${GATEWAY_GRPC_PORT:0}
+      auth-service:
+        base-url: ${AUTH_BASE_URL:http://localhost:8081}
+        grpc-host: ${AUTH_GRPC_HOST:localhost}
+        grpc-port: ${AUTH_GRPC_PORT:9081}
+      notification-service:
+        base-url: ${NOTIFICATION_BASE_URL:http://localhost:8082}
+        grpc-host: ${NOTIFICATION_GRPC_HOST:localhost}
+        grpc-port: ${NOTIFICATION_GRPC_PORT:9082}
+      audit-service:
+        base-url: ${AUDIT_BASE_URL:http://localhost:8083}
+        grpc-host: ${AUDIT_GRPC_HOST:localhost}
+        grpc-port: ${AUDIT_GRPC_PORT:9083}
+      ratelimit-service:
+        base-url: ${RATELIMIT_BASE_URL:http://localhost:8084}
+        grpc-host: ${RATELIMIT_GRPC_HOST:localhost}
+        grpc-port: ${RATELIMIT_GRPC_PORT:9084}
+      cache-service:
+        base-url: ${CACHE_BASE_URL:http://localhost:8085}
+        grpc-host: ${CACHE_GRPC_HOST:localhost}
+        grpc-port: ${CACHE_GRPC_PORT:9085}
+      scheduler-service:
+        base-url: ${SCHEDULER_BASE_URL:http://localhost:8086}
+        grpc-host: ${SCHEDULER_GRPC_HOST:localhost}
+        grpc-port: ${SCHEDULER_GRPC_PORT:9086}
+      feature-flag-service:
+        base-url: ${FEATURE_FLAG_BASE_URL:http://localhost:8087}
+        grpc-host: ${FEATURE_FLAG_GRPC_HOST:localhost}
+        grpc-port: ${FEATURE_FLAG_GRPC_PORT:9087}
+
+logging:
+  pattern:
+    # Same correlation-id convention as every other Arceus service - see
+    # audit-service's application.yml for the full rationale.
+    level: "%5p [correlationId=%X{correlationId:-}]"
+  level:
+    com.arijit.monitoringservice: ${LOG_LEVEL_MONITORING_SERVICE:INFO}

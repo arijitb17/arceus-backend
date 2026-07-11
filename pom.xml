@@ -36,6 +36,7 @@
         <module>services/scheduler-service</module>
         <module>services/feature-flag-service</module>
         <module>services/gateway-service</module>
+        <module>services/monitoring-service</module>
     </modules>
 
 </project>

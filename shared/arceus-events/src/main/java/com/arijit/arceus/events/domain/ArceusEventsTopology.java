@@ -74,5 +74,19 @@ public final class ArceusEventsTopology {
     public static final String RK_FLAG_DISABLED = "flag.disabled";
     public static final String RK_FLAG_DELETED = "flag.deleted";
 
+    // monitoring-service's platform-observability events. Same reasoning as
+    // job.* and flag.* above: published onto this one shared exchange so
+    // audit-service's existing "#" binding captures every service-down /
+    // alert transition for free, and so any future subscriber (e.g. a
+    // status-page service, once one exists) can bind its own queue without
+    // monitoring-service ever needing to know it exists. Deliberately not
+    // "notification integrations" (out of scope per the platform's current
+    // stage) - just the same fire-and-forget domain event every other
+    // publisher already emits.
+    public static final String RK_SERVICE_DOWN = "service.down";
+    public static final String RK_SERVICE_RECOVERED = "service.recovered";
+    public static final String RK_ALERT_TRIGGERED = "alert.triggered";
+    public static final String RK_ALERT_RESOLVED = "alert.resolved";
+
     private ArceusEventsTopology() {}
 }

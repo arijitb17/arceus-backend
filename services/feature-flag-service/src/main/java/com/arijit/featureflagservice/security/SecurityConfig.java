@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health", "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         // scheduler-service's HTTP_CALLBACK executor can't attach custom
                         // headers per job (see HttpCallbackJobExecutor), so the shared
                         // token here travels as a query parameter instead of

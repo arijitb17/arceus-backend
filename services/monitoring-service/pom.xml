@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.arijit</groupId>
+        <artifactId>arceus-platform</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>monitoring-service</artifactId>
+    <packaging>jar</packaging>
+    <name>monitoring-service</name>
+    <description>
+        Arceus Monitoring Service - the centralized observability platform
+        for the whole Arceus Platform. Polls every other service's Spring
+        Boot Actuator endpoints (health + metrics) on a fixed schedule,
+        persists health/metric snapshots for history, evaluates alert rules
+        against the latest readings, and exposes REST + gRPC surfaces so
+        both humans (a future dashboard) and other services can ask "is the
+        platform healthy right now" without each one reimplementing its own
+        polling.
+
+        Deliberately does NOT implement distributed tracing, log
+        aggregation, an OpenTelemetry collector, or external notification
+        integrations (PagerDuty/Slack/email) yet - see AlertEvent and the
+        RabbitMQ ServiceDown/ServiceRecovered/AlertTriggered/AlertResolved
+        events it publishes, which are exactly the seam a future
+        notification-dispatch consumer would subscribe to without any
+        change to this service's public REST/gRPC contracts.
+    </description>
+
+    <properties>
+        <springdoc.version>2.8.5</springdoc.version>
+    </properties>
+
+    <dependencies>
+        <!-- gRPC server: exposes MonitoringGrpcService for in-cluster callers
+             that want a fast, typed, read-only path to platform health/
+             metrics/alerts instead of the REST API. -->
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-server-spring-boot-starter</artifactId>
+            <version>${grpc-spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.arijit</groupId>
+            <artifactId>arceus-grpc-contracts</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.arijit</groupId>
+            <artifactId>arceus-events</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <!-- Own database: health/metric snapshot history, alert rules, and
+             alert event history. Per the platform rule "services never
+             access another service's database", this is a separate schema
+             from every other service's - monitoring-service learns about
+             the rest of the platform purely over the network (HTTP/gRPC),
+             never by reading their tables directly. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Optional read cache for the latest-snapshot-per-service view
+             backing GET /dashboard and GET /services - see
+             LatestStateCache, which degrades to DB-only reads if Redis is
+             unreachable rather than failing the dashboard. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- The one service in the platform that actually scrapes/exposes
+             Prometheus-formatted metrics today (see application.yml) - it
+             both collects every other service's Actuator metrics and
+             exposes its own the same way, so Prometheus can scrape
+             monitoring-service itself alongside everything it monitors. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>springboot3-dotenv</artifactId>
+            <version>5.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.amqp</groupId>
+            <artifactId>spring-rabbit-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

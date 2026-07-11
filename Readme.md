@@ -372,7 +372,7 @@ This project is designed to master:
 | Scheduler (REST + gRPC + RabbitMQ job scheduling: one-time/delayed/cron/recurring, retry+backoff, DLQ) | ✅ v1 |
 | Feature Flags (REST + gRPC, boolean/int/long/double/string/JSON, per-environment values, percentage rollout, scheduled activation via scheduler-service, version + audit history, Redis cache) | ✅ v1 |
 | Deployment | ⏳ |
-| Monitoring | ⏳ |
+| Monitoring (REST + gRPC platform observability: health/metrics polling of every service, alert rules, health/metrics history, dashboard + stats APIs, RabbitMQ service-down/alert events) | ✅ v1 |
 
 Docker, CI/CD, and comprehensive test suites are deliberately deferred until every core service above is finished - see the roadmap doc for the full rationale.
 

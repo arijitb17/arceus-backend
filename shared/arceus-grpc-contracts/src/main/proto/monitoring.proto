@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package arceus.monitoring;
+
+option java_package = "com.arijit.arceus.grpc.monitoring";
+option java_multiple_files = true;
+option java_outer_classname = "MonitoringProto";
+
+import "gateway.proto";
+
+// gRPC face of monitoring-service - mirrors com.arijit.monitoringservice.dto.*
+// field-for-field, same convention as featureflag.proto, so REST and gRPC
+// callers see identical data. Used by other in-platform services (or an
+// internal ops tool) that want a fast, typed, in-cluster path to platform
+// health/metrics/alerts instead of the REST API.
+//
+// Every RPC here is read-only - alert rule *mutation* (create/update/delete)
+// is deliberately REST-only today (see AlertController), since that's an
+// admin-console action, not a hot in-cluster path. GetAlerts here returns
+// alert *events* (triggered/resolved history), not rule definitions.
+
+message ServiceHealth {
+  string service_name = 1;
+  string status = 2;              // UP | DOWN | DEGRADED | UNKNOWN
+  string database_status = 3;     // UP | DOWN | UNKNOWN | N/A
+  string cache_status = 4;
+  string rabbit_status = 5;
+  string grpc_status = 6;
+  bool api_available = 7;
+  int64 response_time_ms = 8;
+  int64 uptime_seconds = 9;
+  string version = 10;
+  string error_message = 11;
+  int64 checked_at_epoch_millis = 12;
+}
+
+message GetServiceHealthRequest {
+  string service_name = 1;
+}
+
+message GetServiceHealthResponse {
+  bool found = 1;
+  ServiceHealth health = 2;
+}
+
+message GetPlatformHealthRequest {
+}
+
+message GetPlatformHealthResponse {
+  string overall_status = 1;
+  repeated ServiceHealth services = 2;
+  int64 generated_at_epoch_millis = 3;
+}
+
+message ServiceMetrics {
+  string service_name = 1;
+  int64 request_count = 2;
+  int64 error_count = 3;
+  double success_rate = 4;
+  double avg_response_time_ms = 5;
+  double cpu_usage_percent = 6;
+  double memory_used_mb = 7;
+  double memory_max_mb = 8;
+  int32 thread_count = 9;
+  int32 active_connections = 10;
+  int32 queue_size = 11;
+  double cache_hit_ratio = 12;
+  double cache_miss_ratio = 13;
+  int32 scheduler_active_jobs = 14;
+  int32 scheduler_failed_jobs = 15;
+  int64 feature_flag_evaluations = 16;
+  int64 rate_limit_requests = 17;
+  int64 rate_limit_blocked = 18;
+  int64 captured_at_epoch_millis = 19;
+}
+
+message GetMetricsRequest {
+  string service_name = 1; // empty = every monitored service
+}
+
+message GetMetricsResponse {
+  repeated ServiceMetrics metrics = 1;
+}
+
+message AlertEventInfo {
+  string id = 1;
+  string rule_name = 2;
+  string alert_type = 3;    // SERVICE_DOWN | HIGH_CPU | HIGH_MEMORY | HIGH_ERROR_RATE | HIGH_RESPONSE_TIME | RABBITMQ_OFFLINE | REDIS_OFFLINE | DATABASE_OFFLINE
+  string service_name = 4;  // empty = platform-wide rule
+  string severity = 5;      // CRITICAL | WARNING | INFO
+  string message = 6;
+  string state = 7;         // ACTIVE | RESOLVED
+  double metric_value = 8;
+  int64 triggered_at_epoch_millis = 9;
+  int64 resolved_at_epoch_millis = 10; // 0 = not resolved
+}
+
+message GetAlertsRequest {
+  string state = 1;         // optional filter: ACTIVE | RESOLVED, empty = all
+  string service_name = 2;  // optional filter
+  int32 page = 3;
+  int32 size = 4;
+}
+
+message GetAlertsResponse {
+  repeated AlertEventInfo alerts = 1;
+  int64 total_elements = 2;
+  int32 total_pages = 3;
+  int32 page = 4;
+  int32 size = 5;
+}
+
+message GetDashboardRequest {
+}
+
+message GetDashboardResponse {
+  string overall_status = 1;
+  repeated ServiceHealth services = 2;
+  repeated AlertEventInfo active_alerts = 3;
+  repeated AlertEventInfo recent_alerts = 4;
+  int32 total_services = 5;
+  int32 services_up = 6;
+  int32 services_down = 7;
+  int32 services_degraded = 8;
+  int64 generated_at_epoch_millis = 9;
+}
+
+service MonitoringGrpcService {
+  rpc GetServiceHealth(GetServiceHealthRequest) returns (GetServiceHealthResponse);
+  rpc GetPlatformHealth(GetPlatformHealthRequest) returns (GetPlatformHealthResponse);
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+  rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse);
+  rpc GetAlerts(GetAlertsRequest) returns (GetAlertsResponse);
+  rpc Ping(arceus.gateway.PingRequest) returns (arceus.gateway.PingResponse);
+}

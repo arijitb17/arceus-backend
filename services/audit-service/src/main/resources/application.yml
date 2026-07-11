@@ -57,7 +57,13 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # 'metrics' + show-details below are what let monitoring-service's
+        # ServiceHealthCollector/ServiceMetricsCollector see this service's
+        # db/redis/rabbit component breakdown and JVM/CPU/request metrics.
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
 
 logging:
   pattern:
