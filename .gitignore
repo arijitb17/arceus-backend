@@ -1,38 +1,102 @@
-Readme.md
-target/
+############################
+# Maven
+############################
 
-### Secrets ###
+target/
+**/target/
+
+############################
+# Build
+############################
+
+build/
+**/build/
+
+############################
+# Logs
+############################
+
+logs/
+*.log
+
+############################
+# Environment
+############################
+
 .env
 .env.*
 !.env.example
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+############################
+# IntelliJ
+############################
 
-### IntelliJ IDEA ###
-.idea
-*.iws
+.idea/
 *.iml
+*.iws
 *.ipr
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+############################
+# VS Code
+############################
 
-### VS Code ###
 .vscode/
+
+############################
+# Eclipse / STS
+############################
+
+.project
+.classpath
+.settings/
+.springBeans
+.sts4-cache
+.apt_generated
+.factorypath
+
+############################
+# NetBeans
+############################
+
+nbproject/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+############################
+# Node
+############################
+
+node_modules/
+.next/
+out/
+
+############################
+# OS
+############################
+
+.DS_Store
+Thumbs.db
+
+############################
+# Archives
+############################
+
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+
+############################
+# IDE temp
+############################
+
+*.swp
+*.swo
+
+############################
+# Coverage
+############################
+
+coverage/
