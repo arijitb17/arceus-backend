@@ -1,6 +1,8 @@
 package com.arijit.gatewayservice.config;
 
 import com.arijit.gatewayservice.error.ErrorResponseWriter;
+import com.arijit.gatewayservice.featureflag.RouteFlagFilter;
+import com.arijit.gatewayservice.featureflag.RouteFlagGatewayClient;
 import com.arijit.gatewayservice.filter.RequestIdFilter;
 import com.arijit.gatewayservice.filter.RequestLoggingFilter;
 import com.arijit.gatewayservice.ratelimit.RateLimitFilter;
@@ -26,6 +28,9 @@ import java.util.List;
  *   <li>RequestIdFilter - assigns/propagates a correlation id</li>
  *   <li>RequestLoggingFilter - times the whole request, logs once at the end</li>
  *   <li>JwtAuthFilter - rejects protected routes without a valid access token</li>
+ *   <li>RouteFlagFilter - per-route feature-flag kill-switch (see
+ *       RouteFlagGatewayClient); runs before rate limiting so a disabled
+ *       route doesn't spend a rate-limit budget slot for nothing</li>
  *   <li>RateLimitFilter - asks the RateLimiter Service before forwarding</li>
  * </ol>
  * After that, the request reaches ProxyController, which forwards it to
@@ -57,10 +62,16 @@ public class FilterConfig {
     }
 
     @Bean
+    public FilterRegistrationBean<Filter> routeFlagFilter(RouteFlagGatewayClient routeFlagGatewayClient,
+                                                           ErrorResponseWriter errorResponseWriter) {
+        return registration(new RouteFlagFilter(routeFlagGatewayClient, errorResponseWriter), 4);
+    }
+
+    @Bean
     public FilterRegistrationBean<Filter> rateLimitFilter(GatewayProperties properties,
                                                            RateLimitGatewayClient rateLimitGatewayClient,
                                                            ErrorResponseWriter errorResponseWriter) {
-        return registration(new RateLimitFilter(properties, rateLimitGatewayClient, errorResponseWriter), 4);
+        return registration(new RateLimitFilter(properties, rateLimitGatewayClient, errorResponseWriter), 5);
     }
 
     private CorsConfigurationSource corsConfigurationSource(GatewayProperties properties) {

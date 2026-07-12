@@ -58,3 +58,35 @@ service AuditGatewayService {
   rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
   rpc Ping(PingRequest) returns (PingResponse);
 }
+
+// The following five follow the exact same shape as the three above - added
+// so the Gateway can proxy Monitoring/Deployment/Scheduler/FeatureFlag/Cache
+// the same way it already proxies Auth/Notification/Audit, instead of a
+// frontend needing to talk to those services directly (see each service's
+// XxxGatewayGrpcService for the forwarding implementation, which is
+// identical across all eight - only the service name string differs).
+
+service MonitoringGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+service DeploymentGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+service SchedulerGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+service FeatureFlagGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+service CacheGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}

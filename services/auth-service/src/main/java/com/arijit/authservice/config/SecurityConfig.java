@@ -69,7 +69,13 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
-            "/actuator/health"
+            "/actuator/health",
+            "/actuator/info",
+            "/actuator/metrics/**",
+            // scheduler-service's HTTP_CALLBACK executor can't attach a JWT/API
+            // key - SessionCleanupCallbackController checks its own ?token=
+            // instead, same pattern as deployment-service's internal callbacks.
+            "/internal/auth/**"
     };
 
     @Bean

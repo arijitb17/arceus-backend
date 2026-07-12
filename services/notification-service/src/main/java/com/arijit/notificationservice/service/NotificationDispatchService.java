@@ -39,12 +39,13 @@ public class NotificationDispatchService {
     private final TemplateRenderer templateRenderer;
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
+    private final com.arijit.notificationservice.featureflag.ChannelFlagGateService channelFlagGateService;
 
     @Transactional
     public NotificationRecord createAndSend(NotificationChannel channel, String templateCode, String to, Map<String, Object> variables) {
-        NotificationTemplate template = templateRepository.findByChannelAndCode(channel, templateCode)
+        NotificationTemplate template = templateRepository.findByChannelAndCodeAndActiveTrue(channel, templateCode)
                 .orElseThrow(() -> new ApiException(
-                        "No " + channel + " template registered with code '" + templateCode + "'", HttpStatus.NOT_FOUND));
+                        "No active " + channel + " template registered with code '" + templateCode + "'", HttpStatus.NOT_FOUND));
 
         Instant now = Instant.now();
         NotificationRecord record = NotificationRecord.builder()
@@ -57,6 +58,15 @@ public class NotificationDispatchService {
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
+
+        if (!channelFlagGateService.isChannelEnabled(channel)) {
+            log.info("Suppressing {} notification '{}' to {} - channel disabled via feature-flag-service", channel, templateCode, to);
+            record.setStatus(NotificationStatus.SUPPRESSED);
+            record.setLastError("Channel disabled via feature-flag-service");
+            record.setUpdatedAt(Instant.now());
+            return recordRepository.save(record);
+        }
+
         record = recordRepository.save(record);
 
         attemptSend(record, template, variables);
@@ -66,11 +76,11 @@ public class NotificationDispatchService {
     /** Used by NotificationRetryScheduler - re-reads the template by code/channel since it isn't stored on the record. */
     @Transactional
     public void retry(NotificationRecord record) {
-        NotificationTemplate template = templateRepository.findByChannelAndCode(record.getChannel(), record.getTemplateCode())
+        NotificationTemplate template = templateRepository.findByChannelAndCodeAndActiveTrue(record.getChannel(), record.getTemplateCode())
                 .orElse(null);
         if (template == null) {
             record.setStatus(NotificationStatus.DEAD);
-            record.setLastError("Template no longer exists");
+            record.setLastError("Template no longer exists or has been deactivated");
             record.setUpdatedAt(Instant.now());
             recordRepository.save(record);
             return;

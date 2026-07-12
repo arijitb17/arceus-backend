@@ -1,0 +1,115 @@
+server:
+  port: ${DEPLOYMENT_PORT:8089}
+
+grpc:
+  server:
+    port: ${DEPLOYMENT_GRPC_PORT:9089}
+  client:
+    monitoring:
+      address: static://${MONITORING_HOST:localhost}:${MONITORING_GRPC_PORT:9088}
+      negotiation-type: plaintext
+    scheduler:
+      address: static://${SCHEDULER_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
+      negotiation-type: plaintext
+    feature-flag:
+      address: static://${FEATURE_FLAG_GRPC_HOST:localhost}:${FEATURE_FLAG_GRPC_PORT:9087}
+      negotiation-type: plaintext
+
+spring:
+  autoconfigure:
+    exclude:
+      # Spring Security here is for the REST layer only, not gRPC - gRPC
+      # auth is handled by GrpcAuthInterceptor instead (see audit-service's
+      # application.yml for the same exclusion and why).
+      - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
+
+  application:
+    name: deployment-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DEPLOYMENT_DB_NAME:arceus_deployment}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # fine for pre-release dev; move to Flyway + validate before v1.0.0
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST}
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 1000
+          max-attempts: 3
+          multiplier: 2.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  pattern:
+    # Same correlation-id convention as every other Arceus service - see
+    # audit-service's application.yml for the full rationale.
+    level: "%5p [correlationId=%X{correlationId:-}]"
+  level:
+    com.arijit.deploymentservice: ${LOG_LEVEL_DEPLOYMENT_SERVICE:INFO}
+
+arceus:
+  deployment:
+    approval:
+      # Environments a deployment must be APPROVED in before it can be
+      # deployed - see DeploymentService#create. Rollbacks bypass this by
+      # default (see rollback-requires-approval below).
+      required-environments: ${DEPLOYMENT_APPROVAL_REQUIRED_ENVIRONMENTS:STAGING,PRODUCTION}
+      rollback-requires-approval: ${DEPLOYMENT_ROLLBACK_REQUIRES_APPROVAL:false}
+    validation:
+      # false: a monitoring-service outage or a DEGRADED dependency never by
+      # itself blocks a deployment - it's recorded as a warning instead.
+      strict: ${DEPLOYMENT_VALIDATION_STRICT:false}
+      version-pattern: ${DEPLOYMENT_VERSION_PATTERN:^[a-zA-Z0-9_.-]+$}
+      docker-image-pattern: ${DEPLOYMENT_DOCKER_IMAGE_PATTERN:^[a-zA-Z0-9_./-]+:[a-zA-Z0-9_.-]+$}
+      required-env-vars: {}
+      dependencies: {}
+    scheduling:
+      enabled: ${DEPLOYMENT_SCHEDULING_ENABLED:true}
+      callback-base-url: ${DEPLOYMENT_CALLBACK_BASE_URL:http://localhost:8089}
+      # "Scheduler executes post-deployment jobs" pipeline step - how long
+      # after a deployment reaches RUNNING scheduler-service waits before
+      # firing the confirmation callback. Long enough for the new version's
+      # process to fully settle past its own startup health-check grace period.
+      post-deploy-verification-delay-ms: ${DEPLOYMENT_POST_DEPLOY_VERIFICATION_DELAY_MS:30000}
+    internal:
+      api-token: ${DEPLOYMENT_INTERNAL_API_TOKEN:changeme-internal-token}
+
+    # x-internal-token deployment-service must present to each downstream
+    # service's own GrpcAuthInterceptor - see DeploymentProperties.GrpcClients
+    # and config.GrpcClientConfig. Each value must match that target
+    # service's own arceus.<service>.internal.api-token exactly.
+    grpc-clients:
+      monitoring-token: ${MONITORING_INTERNAL_API_TOKEN:changeme-monitoring-internal-token}
+      scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
+      feature-flag-token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}

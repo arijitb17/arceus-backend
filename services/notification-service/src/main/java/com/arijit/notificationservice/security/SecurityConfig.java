@@ -30,6 +30,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // scheduler-service's HTTP_CALLBACK executor can't attach a role
+                        // header - RetryCallbackController checks its own ?token= instead,
+                        // same pattern as deployment-service's DeploymentCallbackController.
+                        .requestMatchers("/internal/notifications/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new RoleHeaderAuthFilter(), UsernamePasswordAuthenticationFilter.class);
 

@@ -50,6 +50,21 @@ public class GlobalExceptionHandler {
                 .body(errorBody(HttpStatus.FORBIDDEN, "Account not fully verified - check email and phone for OTPs"));
     }
 
+    @ExceptionHandler(org.springframework.security.authentication.LockedException.class)
+    public ResponseEntity<Map<String, Object>> handleLocked(org.springframework.security.authentication.LockedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(errorBody(HttpStatus.FORBIDDEN, "This account has been disabled by an administrator"));
+    }
+
+    // Without this, a non-admin hitting an @PreAuthorize("hasRole('ADMIN')")
+    // endpoint (e.g. UserManagementController) would fall through to the
+    // generic Exception handler below and come back as a misleading 500.
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(errorBody(HttpStatus.FORBIDDEN, "You don't have permission to do that"));
+    }
+
     // Fires automatically when a @Valid @RequestBody DTO fails its
     // @NotBlank/@Email/@Size checks - turns that into a field-by-field error map.
     @ExceptionHandler(MethodArgumentNotValidException.class)

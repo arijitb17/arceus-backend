@@ -59,11 +59,14 @@ public class AuthService {
     private final PendingChangeService pendingChangeService;
     private final DomainEventPublisher domainEventPublisher;
     private final OAuth2ExchangeService oAuth2ExchangeService;
+    private final com.arijit.authservice.featureflag.FeatureFlagGateService featureFlagGateService;
 
     // ---------- Registration & core verification ----------
 
     @Transactional
     public MessageResponse register(RegisterRequest request) {
+        featureFlagGateService.requireEnabled("auth.registration.enabled", "Registration");
+
         if (userRepository.existsByEmail(request.email())) {
             throw new ApiException("An account with this email already exists", HttpStatus.CONFLICT);
         }
@@ -345,6 +348,27 @@ public class AuthService {
                     refreshTokenRepository.delete(stored);
                     domainEventPublisher.publish(UserLoggedOutEvent.now(user.getId(), user.getEmail()));
                 });
+    }
+
+    // ---------- Sessions (self-service) ----------
+    // logout() above kills the one session you're currently holding a
+    // refresh token for; these let you see and kill OTHER sessions too
+    // (e.g. "I left myself logged in on a shared computer").
+
+    public SessionPageResponse listMySessions(String email, int page, int size) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        var pageable = org.springframework.data.domain.PageRequest.of(
+                Math.max(page, 0), Math.min(Math.max(size, 1), 100));
+        return SessionPageResponse.from(
+                refreshTokenRepository.findByUserOrderByCreatedAtDesc(user, pageable).map(SessionResponse::from));
+    }
+
+    @Transactional
+    public void revokeMySession(String email, java.util.UUID sessionId) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        RefreshToken session = refreshTokenRepository.findByIdAndUser(sessionId, user)
+                .orElseThrow(() -> new ApiException("No session " + sessionId, HttpStatus.NOT_FOUND));
+        refreshTokenRepository.delete(session);
     }
 
     // ---------- Shared helpers ----------

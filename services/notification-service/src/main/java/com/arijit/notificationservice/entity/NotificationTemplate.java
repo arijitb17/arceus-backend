@@ -42,4 +42,11 @@ public class NotificationTemplate {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
+
+    // Soft-disable instead of deleting: keeps notification history (which
+    // references templateCode, not a foreign key to this row) meaningful,
+    // and lets an admin turn a template off/on without losing its content.
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
 }

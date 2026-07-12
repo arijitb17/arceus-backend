@@ -43,13 +43,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        String token;
+        if (header != null && header.startsWith("Bearer ")) {
+            token = header.substring("Bearer ".length());
+        } else if (path.startsWith("/api/live/") && request.getParameter("access_token") != null) {
+            // Browsers' EventSource API can't set custom request headers, so
+            // there's no way for an SSE client to send a Bearer header - the
+            // token has to ride in the URL instead. Scoped to this one
+            // route on purpose: nowhere else accepts a token this way, and
+            // request.getRequestURI() (what RequestLoggingFilter logs)
+            // never includes the query string, so this doesn't end up in
+            // the Gateway's own access log.
+            token = request.getParameter("access_token");
+        } else {
             errorResponseWriter.write(request, response, HttpStatus.UNAUTHORIZED.value(),
                     "Unauthorized", "Missing or malformed Authorization header");
             return;
         }
-
-        String token = header.substring("Bearer ".length());
         try {
             JwtVerificationService.VerifiedToken verified = jwtVerificationService.verify(token);
             request.setAttribute(USER_EMAIL_ATTRIBUTE, verified.subject());

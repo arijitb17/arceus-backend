@@ -139,6 +139,14 @@ arceus:
         base-url: ${FEATURE_FLAG_BASE_URL:http://localhost:8087}
         grpc-host: ${FEATURE_FLAG_GRPC_HOST:localhost}
         grpc-port: ${FEATURE_FLAG_GRPC_PORT:9087}
+      monitoring-service:
+        base-url: ${MONITORING_BASE_URL:http://localhost:8088}
+        grpc-host: ${MONITORING_GRPC_HOST:}
+        grpc-port: ${MONITORING_GRPC_PORT:0}
+      deployment-service:
+        base-url: ${DEPLOYMENT_BASE_URL:http://localhost:8089}
+        grpc-host: ${DEPLOYMENT_GRPC_HOST:localhost}
+        grpc-port: ${DEPLOYMENT_GRPC_PORT:9089}
 
 logging:
   pattern:

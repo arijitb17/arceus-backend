@@ -9,7 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record FeatureFlagProperties(
         Cache cache,
         Internal internal,
-        Scheduling scheduling
+        Scheduling scheduling,
+        GrpcClients grpcClients
 ) {
 
     /** Redis-backed evaluation cache - see FlagCacheService. */
@@ -30,6 +31,17 @@ public record FeatureFlagProperties(
             boolean enabled,
             /** Base URL scheduler-service's HTTP_CALLBACK jobs use to call back into this service. */
             String callbackBaseUrl
+    ) {
+    }
+
+    /**
+     * The x-internal-token scheduler-service's own GrpcAuthInterceptor
+     * expects on every RPC but Ping - see config.GrpcClientConfig for where
+     * this gets attached. Must match scheduler-service's own
+     * {@code arceus.scheduler.internal.api-token} exactly.
+     */
+    public record GrpcClients(
+            String schedulerToken
     ) {
     }
 }

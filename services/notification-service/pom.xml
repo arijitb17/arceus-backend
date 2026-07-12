@@ -43,6 +43,14 @@
             <artifactId>grpc-server-spring-boot-starter</artifactId>
             <version>${grpc-spring.version}</version>
         </dependency>
+        <!-- gRPC client: calls scheduler-service to register the recurring
+             notification-retry job instead of running its own @Scheduled
+             poll loop - see scheduler.RetryJobRegistrar. -->
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-client-spring-boot-starter</artifactId>
+            <version>${grpc-spring.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.arijit</groupId>
             <artifactId>arceus-grpc-contracts</artifactId>
@@ -128,6 +136,13 @@
                         </exclude>
                     </excludes>
                 </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

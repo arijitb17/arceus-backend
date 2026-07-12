@@ -23,7 +23,10 @@ class CacheTtlServiceTest {
             com.arijit.cacheservice.dto.SerializationFormat.JSON,
             5_242_880L,
             new CacheProperties.Compression(true, 8192L),
-            new CacheProperties.Namespaces(List.of("session"), false)
+            new CacheProperties.Namespaces(List.of("session"), false),
+            new CacheProperties.Sweep(86_400L),
+            new CacheProperties.Internal("test-internal-token", "http://localhost:8085"),
+            new CacheProperties.Scheduling(60_000L, "test-scheduler-token")
     );
 
     private final CacheTtlService service = new CacheTtlService(properties);

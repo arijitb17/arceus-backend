@@ -26,12 +26,12 @@ public class ErrorResponseWriter {
 
     public void write(HttpServletRequest request, HttpServletResponse response, int status, String error,
                        String message, Map<String, String> extraHeaders) throws IOException {
-        String requestId = String.valueOf(request.getAttribute("requestId"));
+        String correlationId = String.valueOf(request.getAttribute("requestId"));
         extraHeaders.forEach(response::setHeader);
         response.setStatus(status);
         response.setContentType("application/json");
         response.getWriter().write(objectMapper.writeValueAsString(
-                ApiError.of(status, error, message, request.getRequestURI(), requestId)));
+                ApiError.of(status, error, message, correlationId)));
     }
 }
 

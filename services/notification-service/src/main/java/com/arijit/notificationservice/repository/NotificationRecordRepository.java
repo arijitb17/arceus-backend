@@ -34,4 +34,19 @@ public interface NotificationRecordRepository extends JpaRepository<Notification
     List<NotificationRecord> findByStatusAndAttemptsLessThanAndUpdatedAtBefore(
             NotificationStatus status, int maxAttempts, Instant updatedBefore
     );
+
+    /** Backs the admin "queue" view - everything not yet in a terminal state. */
+    @Query("""
+            select n from NotificationRecord n
+            where n.status in :statuses
+              and (:channel is null or n.channel = :channel)
+            order by n.createdAt asc
+            """)
+    Page<NotificationRecord> findQueued(
+            @Param("statuses") List<NotificationStatus> statuses,
+            @Param("channel") NotificationChannel channel,
+            Pageable pageable
+    );
+
+    long countByStatus(NotificationStatus status);
 }

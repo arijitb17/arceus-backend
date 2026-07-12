@@ -38,6 +38,11 @@ public class CustomUserDetailsService implements UserDetailsService {
                 // Spring Security throws DisabledException automatically at
                 // login if this is true - one less thing we check by hand.
                 .disabled(!user.isFullyVerified())
+                // Separate signal from the above: an admin-suspended account
+                // throws LockedException instead, so callers (and our own
+                // GlobalExceptionHandler) can tell "never finished verifying"
+                // apart from "an admin turned this off".
+                .accountLocked(!user.isAccountEnabled())
                 .build();
     }
 }

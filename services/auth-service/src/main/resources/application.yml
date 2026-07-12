@@ -4,6 +4,17 @@ server:
 grpc:
   server:
     port: ${AUTH_GRPC_PORT:9081}
+  client:
+    # Used by scheduler.SessionCleanupJobRegistrar to register the
+    # recurring expired-session-cleanup job.
+    scheduler:
+      address: static://${SCHEDULER_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
+      negotiation-type: plaintext
+    # Used by featureflag.FeatureFlagGateService to gate configurable auth
+    # actions (e.g. registration) behind a flag.
+    feature-flag:
+      address: static://${FEATURE_FLAG_GRPC_HOST:localhost}:${FEATURE_FLAG_GRPC_PORT:9087}
+      negotiation-type: plaintext
 
 spring:
   autoconfigure:
@@ -102,6 +113,28 @@ app:
     # (relevant mainly for the OAuth2 redirect flow, which isn't proxied
     # through the Gateway). Comma-separated; empty means nothing is allowed.
     allowed-origins: ${AUTH_CORS_ALLOWED_ORIGINS:}
+  internal:
+    # Shared secret scheduler-service's HTTP_CALLBACK executor presents as
+    # ?token= when it POSTs to /internal/auth/sessions/clean-expired - see
+    # SessionCleanupCallbackController / SessionCleanupJobRegistrar.
+    api-token: ${AUTH_INTERNAL_API_TOKEN:changeme-auth-internal-token}
+    # Must be reachable from scheduler-service's pod/host, not just this service's own network.
+    callback-base-url: ${AUTH_CALLBACK_BASE_URL:http://localhost:8081}
+  scheduling:
+    # "Clean expired sessions" scheduled job - how often scheduler-service
+    # fires the sweep. See scheduler.SessionCleanupJobRegistrar.
+    session-cleanup-interval-ms: ${AUTH_SESSION_CLEANUP_INTERVAL_MS:3600000}   # 1 hour
+    # x-internal-token this service must present when it calls
+    # scheduler-service's gRPC API - see config.GrpcClientConfig. Must
+    # match scheduler-service's own arceus.scheduler.internal.api-token exactly.
+    scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
+  feature-flags:
+    # See featureflag.FeatureFlagGateService.
+    environment: ${AUTH_FEATURE_FLAG_ENVIRONMENT:PRODUCTION}
+    # x-internal-token this service must present when it calls
+    # feature-flag-service's gRPC API. Must match feature-flag-service's
+    # own arceus.feature-flag.internal.api-token exactly.
+    token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}
 otp:
   expiration-minutes: 5
   reset-token-expiration-minutes: 10

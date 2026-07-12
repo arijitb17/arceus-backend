@@ -4,6 +4,11 @@ server:
 grpc:
   server:
     port: ${CACHE_GRPC_PORT:9085}
+  client:
+    # Used by scheduler.SweepJobRegistrar to register the recurring cache-sweep job.
+    scheduler:
+      address: static://${SCHEDULER_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
+      negotiation-type: plaintext
 
 spring:
 
@@ -75,10 +80,31 @@ arceus:
         - user
         - notification
         - ratelimit
+        - featureflag
       # When true, namespaces outside the allow-list above are still
       # accepted (useful in early development). Keep false anywhere this
       # service is shared across teams/services.
       allow-unlisted: ${CACHE_ALLOW_UNLISTED_NAMESPACES:false}
+
+    # "Clean cache" scheduled job - see service.CacheSweepService.
+    sweep:
+      no-expiry-stale-after-seconds: ${CACHE_SWEEP_NO_EXPIRY_STALE_AFTER_SECONDS:2592000} # 30 days
+
+    internal:
+      # Shared secret scheduler-service's HTTP_CALLBACK executor presents
+      # as ?token= when it POSTs to /internal/cache/sweep - see
+      # SweepCallbackController / SweepJobRegistrar.
+      api-token: ${CACHE_INTERNAL_API_TOKEN:changeme-cache-internal-token}
+      # Must be reachable from scheduler-service's pod/host, not just this service's own network.
+      callback-base-url: ${CACHE_CALLBACK_BASE_URL:http://localhost:8085}
+
+    scheduling:
+      # How often scheduler-service fires the sweep.
+      sweep-interval-ms: ${CACHE_SWEEP_INTERVAL_MS:86400000} # 24 hours
+      # x-internal-token this service must present when it calls
+      # scheduler-service's gRPC API - see config.GrpcClientConfig. Must
+      # match scheduler-service's own arceus.scheduler.internal.api-token exactly.
+      scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
 
 logging:
   pattern:

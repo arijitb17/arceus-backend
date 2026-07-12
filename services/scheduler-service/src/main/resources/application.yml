@@ -4,6 +4,11 @@ server:
 grpc:
   server:
     port: ${SCHEDULER_GRPC_PORT:9086}
+  client:
+    # Used by featureflag.JobFlagGateService to gate job execution per calling service.
+    feature-flag:
+      address: static://${FEATURE_FLAG_GRPC_HOST:localhost}:${FEATURE_FLAG_GRPC_PORT:9087}
+      negotiation-type: plaintext
 
 spring:
   autoconfigure:
@@ -69,6 +74,14 @@ management:
 # --- Arceus Scheduler Service specific configuration --------------------
 arceus:
   scheduler:
+    # See featureflag.JobFlagGateService.
+    feature-flags:
+      environment: ${SCHEDULER_FEATURE_FLAG_ENVIRONMENT:PRODUCTION}
+    # x-internal-token this service must present when it calls
+    # feature-flag-service's gRPC API - see config.GrpcClientConfig. Must
+    # match feature-flag-service's own arceus.feature-flag.internal.api-token exactly.
+    grpc-clients:
+      feature-flag-token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}
     poll:
       # How often the single poll loop (JobPollerService) checks for due
       # jobs. Lower = lower latency between "due" and "actually dispatched",

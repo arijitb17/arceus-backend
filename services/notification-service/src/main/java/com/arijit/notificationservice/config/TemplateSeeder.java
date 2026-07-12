@@ -36,6 +36,68 @@ public class TemplateSeeder implements CommandLineRunner {
                 If you didn't create this account, you can ignore this email.
                 """
         );
+
+        // Deployment pipeline's "Notification sends deployment status" step
+        // - one template per terminal outcome DomainEventConsumer handles.
+        // Same {{variable}} set on all four so the consumer can build one
+        // variables map and reuse it regardless of which template fires.
+        seedIfMissing(
+                NotificationChannel.EMAIL,
+                "DEPLOYMENT_SUCCESS",
+                "[Arceus] {{serviceName}} {{serviceVersion}} deployed to {{environment}}",
+                """
+                Deployment {{deploymentId}} succeeded.
+
+                Service:     {{serviceName}}
+                Version:     {{serviceVersion}}
+                Environment: {{environment}}
+                Status:      {{status}}
+                Deployed by: {{createdBy}}
+                """
+        );
+
+        seedIfMissing(
+                NotificationChannel.EMAIL,
+                "DEPLOYMENT_FAILURE",
+                "[Arceus] {{serviceName}} {{serviceVersion}} FAILED to deploy to {{environment}}",
+                """
+                Deployment {{deploymentId}} failed.
+
+                Service:     {{serviceName}}
+                Version:     {{serviceVersion}}
+                Environment: {{environment}}
+                Status:      {{status}}
+                Deployed by: {{createdBy}}
+                Error:       {{error}}
+                """
+        );
+
+        seedIfMissing(
+                NotificationChannel.EMAIL,
+                "DEPLOYMENT_ROLLED_BACK",
+                "[Arceus] {{serviceName}} in {{environment}} was rolled back",
+                """
+                Deployment {{deploymentId}} was superseded by a rollback.
+
+                Service:          {{serviceName}}
+                Environment:      {{environment}}
+                Restored version: {{restoredVersion}}
+                """
+        );
+
+        seedIfMissing(
+                NotificationChannel.EMAIL,
+                "DEPLOYMENT_CANCELLED",
+                "[Arceus] {{serviceName}} {{serviceVersion}} deployment cancelled",
+                """
+                Deployment {{deploymentId}} was cancelled before it ran.
+
+                Service:     {{serviceName}}
+                Version:     {{serviceVersion}}
+                Environment: {{environment}}
+                Cancelled by context of: {{createdBy}}
+                """
+        );
     }
 
     private void seedIfMissing(NotificationChannel channel, String code, String subject, String body) {

@@ -40,6 +40,7 @@ public class JobDispatchService {
     private final JobOutcomeService outcomeService;
     private final JobLifecycleEventPublisher eventPublisher;
     private final ThreadPoolTaskExecutor jobTaskExecutor;
+    private final com.arijit.schedulerservice.featureflag.JobFlagGateService jobFlagGateService;
 
     /** Called by JobPollerService for every due job in a poll batch, in the same transaction as the pessimistic-locked read. */
     @Transactional
@@ -96,6 +97,13 @@ public class JobDispatchService {
         Job job = maybeJob.get();
         int attemptNumber = job.getRetryCount() + 1;
         Instant startedAt = job.getStartedAt() != null ? job.getStartedAt() : Instant.now();
+
+        if (!jobFlagGateService.isExecutionEnabledFor(job.getServiceName())) {
+            log.info("Skipping job {} ({}) - execution disabled via feature-flag-service for service '{}'",
+                    jobId, job.getJobName(), job.getServiceName());
+            outcomeService.onSuccess(jobId, attemptNumber, startedAt);
+            return;
+        }
 
         try {
             executorResolver.resolve(job.getExecutionTarget()).execute(job);

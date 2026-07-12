@@ -17,6 +17,7 @@
 
     <properties>
         <jjwt.version>0.12.6</jjwt.version>
+        <springdoc.version>2.8.5</springdoc.version>
     </properties>
 
     <dependencies>
@@ -24,6 +25,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- OpenAPI/Swagger annotations used by LiveUpdatesController (@Tag, @Operation) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -36,6 +44,19 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Live-updates SSE fan-out: consumes the same domain-event bus every
+             other subscriber (audit-service, notification-service) already
+             binds its own queue to - see live/LiveUpdatesRabbitConfig. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.arijit</groupId>
+            <artifactId>arceus-events</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
         <!-- gRPC client: talks to Auth, Notification, Audit, and RateLimiter -->
@@ -105,6 +126,13 @@
                         </exclude>
                     </excludes>
                 </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

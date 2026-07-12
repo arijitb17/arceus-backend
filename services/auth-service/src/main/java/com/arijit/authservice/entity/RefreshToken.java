@@ -38,6 +38,18 @@ public class RefreshToken {
     @Column(nullable = false)
     private Instant expiryDate;
 
+    // Nullable for rows created before this column existed (ddl-auto: update
+    // doesn't backfill) - SessionResponse falls back to null cleanly rather
+    // than throwing for old rows.
+    private Instant createdAt;
+
+    @PrePersist
+    void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
+
     public boolean isExpired() {
         return expiryDate.isBefore(Instant.now());
     }

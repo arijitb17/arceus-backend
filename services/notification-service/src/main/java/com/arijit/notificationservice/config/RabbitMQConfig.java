@@ -87,6 +87,41 @@ public class RabbitMQConfig {
                 .with(ArceusEventsTopology.RK_USER_REGISTERED);
     }
 
+    // Deployment pipeline's "Notification sends deployment status" step -
+    // only the terminal outcomes a human actually wants to hear about
+    // (success/failure/rollback/cancellation), not the CREATED/STARTED
+    // transitions, to keep this from paging someone twice per deploy.
+    // Same queue as userRegisteredBinding above - one consumer method
+    // (DomainEventConsumer) branches on eventType, exactly like it already
+    // does for USER_REGISTERED.
+    @Bean
+    public Binding deploymentCompletedBinding(Queue notificationEventsQueue, TopicExchange eventsExchange) {
+        return BindingBuilder.bind(notificationEventsQueue)
+                .to(eventsExchange)
+                .with(ArceusEventsTopology.RK_DEPLOYMENT_COMPLETED);
+    }
+
+    @Bean
+    public Binding deploymentFailedBinding(Queue notificationEventsQueue, TopicExchange eventsExchange) {
+        return BindingBuilder.bind(notificationEventsQueue)
+                .to(eventsExchange)
+                .with(ArceusEventsTopology.RK_DEPLOYMENT_FAILED);
+    }
+
+    @Bean
+    public Binding deploymentRolledBackBinding(Queue notificationEventsQueue, TopicExchange eventsExchange) {
+        return BindingBuilder.bind(notificationEventsQueue)
+                .to(eventsExchange)
+                .with(ArceusEventsTopology.RK_DEPLOYMENT_ROLLED_BACK);
+    }
+
+    @Bean
+    public Binding deploymentCancelledBinding(Queue notificationEventsQueue, TopicExchange eventsExchange) {
+        return BindingBuilder.bind(notificationEventsQueue)
+                .to(eventsExchange)
+                .with(ArceusEventsTopology.RK_DEPLOYMENT_CANCELLED);
+    }
+
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();

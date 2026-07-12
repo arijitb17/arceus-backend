@@ -1,33 +1,46 @@
 package com.arijit.featureflagservice.service;
 
+import com.arijit.arceus.grpc.cache.CacheGrpcServiceGrpc;
+import com.arijit.arceus.grpc.cache.CacheKeyRef;
+import com.arijit.arceus.grpc.cache.DeleteResponse;
+import com.arijit.arceus.grpc.cache.GetResponse;
+import com.arijit.arceus.grpc.cache.PutRequest;
 import com.arijit.featureflagservice.config.FeatureFlagProperties;
 import com.arijit.featureflagservice.entity.Environment;
+import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-
-import java.time.Duration;
 
 /**
  * Caches a flag's serialized state (see FlagService's cache payload
  * format) keyed by key+environment, so EvaluateFlag - the RPC every
  * platform service calls on hot paths - doesn't hit Postgres on every
- * evaluation. Entirely best-effort: any Redis failure (connection
- * refused, timeout, ...) is logged once at WARN and treated as a cache
- * miss, never propagated to the caller - a flag being unreadable from
- * cache must never make evaluation fail, only slightly slower. See
- * HealthService for how Redis's own status is surfaced separately via
- * GET /health, where a caller that cares can actually see it's degraded.
+ * evaluation.
+ * <p>
+ * Goes through cache-service's gRPC API (the "featureflag" namespace)
+ * rather than talking to Redis directly, per the platform-wide "every
+ * service uses Cache Service instead of directly accessing Redis" goal -
+ * cache.proto's own Javadoc names this exact use case. This does add one
+ * extra network hop versus a direct Redis call (feature-flag-service ->
+ * cache-service -> Redis instead of feature-flag-service -> Redis), which
+ * matters here specifically because EvaluateFlag now sits on other
+ * services' hot paths too (Gateway's per-route check, Auth's registration
+ * gate, ...) - acceptable because it's still a single in-cluster gRPC
+ * call, and entirely best-effort: any cache-service failure (down,
+ * timeout, ...) is logged once at WARN and treated as a cache miss, never
+ * propagated to the caller - a flag being unreadable from cache must
+ * never make evaluation fail, only slightly slower. See HealthService for
+ * how Redis's own status is surfaced separately via GET /health.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FlagCacheService {
 
-    private static final String KEY_PREFIX = "featureflag:";
+    private static final String NAMESPACE = "featureflag";
 
-    private final StringRedisTemplate redisTemplate;
+    private final CacheGrpcServiceGrpc.CacheGrpcServiceBlockingStub cacheStub;
     private final FeatureFlagProperties properties;
 
     public String get(String flagKey, Environment environment) {
@@ -35,9 +48,13 @@ public class FlagCacheService {
             return null;
         }
         try {
-            return redisTemplate.opsForValue().get(cacheKey(flagKey, environment));
-        } catch (Exception e) {
-            log.warn("Cache read failed for flag {}/{}: {}", flagKey, environment, e.getMessage());
+            GetResponse response = cacheStub.get(CacheKeyRef.newBuilder()
+                    .setNamespace(NAMESPACE)
+                    .setKey(cacheKey(flagKey, environment))
+                    .build());
+            return response.getFound() ? response.getValue() : null;
+        } catch (StatusRuntimeException e) {
+            log.warn("Cache read failed for flag {}/{}: {}", flagKey, environment, e.getStatus());
             return null;
         }
     }
@@ -47,9 +64,16 @@ public class FlagCacheService {
             return;
         }
         try {
-            redisTemplate.opsForValue().set(cacheKey(flagKey, environment), serialized, Duration.ofSeconds(properties.cache().ttlSeconds()));
-        } catch (Exception e) {
-            log.warn("Cache write failed for flag {}/{}: {}", flagKey, environment, e.getMessage());
+            cacheStub.put(PutRequest.newBuilder()
+                    .setNamespace(NAMESPACE)
+                    .setKey(cacheKey(flagKey, environment))
+                    .setValue(serialized)
+                    .setSerialization("STRING")
+                    .setTtlPolicy("CUSTOM")
+                    .setTtlSeconds(properties.cache().ttlSeconds())
+                    .build());
+        } catch (StatusRuntimeException e) {
+            log.warn("Cache write failed for flag {}/{}: {}", flagKey, environment, e.getStatus());
         }
     }
 
@@ -58,13 +82,19 @@ public class FlagCacheService {
             return;
         }
         try {
-            redisTemplate.delete(cacheKey(flagKey, environment));
-        } catch (Exception e) {
-            log.warn("Cache eviction failed for flag {}/{}: {}", flagKey, environment, e.getMessage());
+            DeleteResponse response = cacheStub.delete(CacheKeyRef.newBuilder()
+                    .setNamespace(NAMESPACE)
+                    .setKey(cacheKey(flagKey, environment))
+                    .build());
+            if (!response.getDeleted()) {
+                log.debug("Cache eviction for flag {}/{} was a no-op - key wasn't cached", flagKey, environment);
+            }
+        } catch (StatusRuntimeException e) {
+            log.warn("Cache eviction failed for flag {}/{}: {}", flagKey, environment, e.getStatus());
         }
     }
 
     private String cacheKey(String flagKey, Environment environment) {
-        return KEY_PREFIX + environment + ":" + flagKey;
+        return environment + ":" + flagKey;
     }
 }

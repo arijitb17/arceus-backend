@@ -39,8 +39,8 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String error, String message, HttpServletRequest request) {
-        String requestId = String.valueOf(request.getAttribute("requestId"));
+        String correlationId = String.valueOf(request.getAttribute("requestId"));
         return ResponseEntity.status(status).body(
-                ApiError.of(status.value(), error, message, request.getRequestURI(), requestId));
+                ApiError.of(status.value(), error, message, correlationId));
     }
 }

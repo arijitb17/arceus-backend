@@ -3,6 +3,7 @@ package com.arijit.notificationservice.controller;
 import com.arijit.notificationservice.dto.NotificationRequest;
 import com.arijit.notificationservice.dto.NotificationResponse;
 import com.arijit.notificationservice.dto.PagedResponse;
+import com.arijit.notificationservice.dto.QueueSummaryResponse;
 import com.arijit.notificationservice.entity.NotificationChannel;
 import com.arijit.notificationservice.entity.NotificationRecord;
 import com.arijit.notificationservice.entity.NotificationStatus;
@@ -70,5 +71,37 @@ public class NotificationController {
         var results = recordRepository.search(channel, status, template, to, pageable)
                 .map(NotificationResponse::from);
         return ResponseEntity.ok(PagedResponse.of(results));
+    }
+
+    // Answers the "no queue/pending-message inspection endpoint" gap. This
+    // is really a convenience view over search() - PENDING + RETRYING are
+    // the two non-terminal states NotificationRetryScheduler still acts on -
+    // but a dedicated route + oldest-first ordering makes "what's stuck
+    // right now" a one-call answer instead of the caller having to know
+    // which statuses count as "in the queue".
+    @GetMapping("/notifications/queue")
+    @Operation(summary = "What's currently pending/retrying, oldest first - what the retry scheduler will act on next")
+    public ResponseEntity<PagedResponse<NotificationResponse>> queue(
+            @RequestParam(required = false) NotificationChannel channel,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        var pageable = PageRequest.of(page, Math.min(size, 100));
+        var statuses = java.util.List.of(NotificationStatus.PENDING, NotificationStatus.RETRYING);
+        var results = recordRepository.findQueued(statuses, channel, pageable).map(NotificationResponse::from);
+        return ResponseEntity.ok(PagedResponse.of(results));
+    }
+
+    @GetMapping("/notifications/queue/summary")
+    @Operation(summary = "Count of notifications in each status - queue depth at a glance")
+    public ResponseEntity<QueueSummaryResponse> queueSummary() {
+        return ResponseEntity.ok(new QueueSummaryResponse(
+                recordRepository.countByStatus(NotificationStatus.PENDING),
+                recordRepository.countByStatus(NotificationStatus.RETRYING),
+                recordRepository.countByStatus(NotificationStatus.DEAD),
+                recordRepository.countByStatus(NotificationStatus.SENT),
+                recordRepository.countByStatus(NotificationStatus.FAILED),
+                recordRepository.countByStatus(NotificationStatus.SUPPRESSED)
+        ));
     }
 }

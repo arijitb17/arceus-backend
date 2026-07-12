@@ -150,6 +150,26 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/sessions")
+    @Operation(summary = "List your own active sessions (one per logged-in device)")
+    public ResponseEntity<SessionPageResponse> mySessions(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(authService.listMySessions(userDetails.getUsername(), page, size));
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    @Operation(summary = "Revoke one of your own other sessions, e.g. a device you left logged in")
+    public ResponseEntity<Void> revokeMySession(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable java.util.UUID sessionId
+    ) {
+        authService.revokeMySession(userDetails.getUsername(), sessionId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/me")
     @Operation(summary = "Get the currently authenticated user's profile")
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal UserDetails userDetails) {

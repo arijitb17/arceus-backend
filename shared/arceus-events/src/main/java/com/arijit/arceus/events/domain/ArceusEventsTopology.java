@@ -88,5 +88,19 @@ public final class ArceusEventsTopology {
     public static final String RK_ALERT_TRIGGERED = "alert.triggered";
     public static final String RK_ALERT_RESOLVED = "alert.resolved";
 
+    // deployment-service's release lifecycle events. Same reasoning as
+    // job.*/flag.*/service.* above: published onto this one shared exchange
+    // so audit-service's existing "#" binding captures every deployment
+    // action for free ("Audit every deployment action" per the platform
+    // security spec), and so any future subscriber (a release dashboard, a
+    // ChatOps bot posting "prod deploy succeeded") can bind its own queue
+    // without deployment-service ever needing to know it exists.
+    public static final String RK_DEPLOYMENT_CREATED = "deployment.created";
+    public static final String RK_DEPLOYMENT_STARTED = "deployment.started";
+    public static final String RK_DEPLOYMENT_COMPLETED = "deployment.completed";
+    public static final String RK_DEPLOYMENT_FAILED = "deployment.failed";
+    public static final String RK_DEPLOYMENT_ROLLED_BACK = "deployment.rolledback";
+    public static final String RK_DEPLOYMENT_CANCELLED = "deployment.cancelled";
+
     private ArceusEventsTopology() {}
 }

@@ -2,9 +2,14 @@ package com.arijit.gatewayservice.proxy;
 
 import com.arijit.arceus.grpc.gateway.AuditGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.AuthGatewayServiceGrpc;
+import com.arijit.arceus.grpc.gateway.CacheGatewayServiceGrpc;
+import com.arijit.arceus.grpc.gateway.DeploymentGatewayServiceGrpc;
+import com.arijit.arceus.grpc.gateway.FeatureFlagGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.HttpRequestMessage;
 import com.arijit.arceus.grpc.gateway.HttpResponseMessage;
+import com.arijit.arceus.grpc.gateway.MonitoringGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.NotificationGatewayServiceGrpc;
+import com.arijit.arceus.grpc.gateway.SchedulerGatewayServiceGrpc;
 import com.arijit.gatewayservice.error.ApiException;
 import com.arijit.gatewayservice.filter.RequestIdFilter;
 import com.arijit.gatewayservice.security.JwtAuthFilter;
@@ -21,21 +26,24 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * The only REST surface clients ever talk to for Auth, Notification, and
- * Audit. Everything under /api/&lt;service&gt;/** is:
+ * The only REST surface clients ever talk to for any downstream service.
+ * Everything under /api/&lt;service&gt;/** is:
  * <ol>
  *   <li>matched to a downstream service via {@link Route},</li>
  *   <li>rewritten from the client-facing path to that service's own
  *       internal REST path (they don't all share the /api/&lt;service&gt;
  *       prefix - notification-service and audit-service predate the
- *       Gateway and keep their original paths),</li>
+ *       Gateway and keep their original paths, and monitoring-service's
+ *       endpoints have no common prefix at all, hence the empty
+ *       downstreamPrefix on MONITORING),</li>
  *   <li>packed into a generic HttpRequestMessage and sent over gRPC,</li>
  *   <li>and the HttpResponseMessage that comes back is replayed onto the
  *       client's HttpServletResponse as-is.</li>
  * </ol>
- * JWT validation and rate limiting already happened in filters before this
- * controller is ever reached; RateLimiter Service itself and the
- * /health endpoint are not proxied through here.
+ * JWT validation, the per-route feature-flag kill-switch, and rate
+ * limiting already happened in filters before this controller is ever
+ * reached; RateLimiter Service itself and the /health endpoint are not
+ * proxied through here.
  */
 @RestController
 @RequiredArgsConstructor
@@ -44,7 +52,12 @@ public class ProxyController {
     private enum Route {
         AUTH("/api/auth", "/api/auth"),
         NOTIFICATIONS("/api/notifications", "/notifications"),
-        AUDIT("/api/audit", "/audit-logs");
+        AUDIT("/api/audit", "/audit-logs"),
+        MONITORING("/api/monitoring", ""),
+        DEPLOYMENTS("/api/deployments", "/deployments"),
+        SCHEDULER("/api/scheduler", "/jobs"),
+        FEATURE_FLAGS("/api/feature-flags", "/flags"),
+        CACHE("/api/cache", "/cache");
 
         final String gatewayPrefix;
         final String downstreamPrefix;
@@ -64,6 +77,11 @@ public class ProxyController {
     private final AuthGatewayServiceGrpc.AuthGatewayServiceBlockingStub authGatewayStub;
     private final NotificationGatewayServiceGrpc.NotificationGatewayServiceBlockingStub notificationGatewayStub;
     private final AuditGatewayServiceGrpc.AuditGatewayServiceBlockingStub auditGatewayStub;
+    private final MonitoringGatewayServiceGrpc.MonitoringGatewayServiceBlockingStub monitoringGatewayStub;
+    private final DeploymentGatewayServiceGrpc.DeploymentGatewayServiceBlockingStub deploymentGatewayStub;
+    private final SchedulerGatewayServiceGrpc.SchedulerGatewayServiceBlockingStub schedulerGatewayStub;
+    private final FeatureFlagGatewayServiceGrpc.FeatureFlagGatewayServiceBlockingStub featureFlagGatewayStub;
+    private final CacheGatewayServiceGrpc.CacheGatewayServiceBlockingStub cacheGatewayStub;
 
     @RequestMapping("/api/auth/**")
     public void auth(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -78,6 +96,31 @@ public class ProxyController {
     @RequestMapping("/api/audit/**")
     public void audit(HttpServletRequest request, HttpServletResponse response) throws IOException {
         forward(Route.AUDIT, auditGatewayStub::forward, request, response);
+    }
+
+    @RequestMapping("/api/monitoring/**")
+    public void monitoring(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        forward(Route.MONITORING, monitoringGatewayStub::forward, request, response);
+    }
+
+    @RequestMapping("/api/deployments/**")
+    public void deployments(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        forward(Route.DEPLOYMENTS, deploymentGatewayStub::forward, request, response);
+    }
+
+    @RequestMapping("/api/scheduler/**")
+    public void scheduler(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        forward(Route.SCHEDULER, schedulerGatewayStub::forward, request, response);
+    }
+
+    @RequestMapping("/api/feature-flags/**")
+    public void featureFlags(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        forward(Route.FEATURE_FLAGS, featureFlagGatewayStub::forward, request, response);
+    }
+
+    @RequestMapping("/api/cache/**")
+    public void cache(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        forward(Route.CACHE, cacheGatewayStub::forward, request, response);
     }
 
     private void forward(Route route, Function<HttpRequestMessage, HttpResponseMessage> call,

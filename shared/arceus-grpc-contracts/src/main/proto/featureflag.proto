@@ -83,6 +83,12 @@ message FlagIdentifier {
   string environment = 2;
 }
 
+message EnableFlagRequest {
+  string key = 1;
+  string environment = 2;
+  string actor = 3; // who/what is making this change, for the audit trail - e.g. "deployment-service"
+}
+
 message GetFlagResponse {
   bool found = 1;
   Flag flag = 2;
@@ -136,5 +142,12 @@ service FeatureFlagGrpcService {
   rpc GetFlag(FlagIdentifier) returns (GetFlagResponse);
   rpc ListFlags(ListFlagsRequest) returns (ListFlagsResponse);
   rpc EvaluateFlag(EvaluateFlagRequest) returns (EvaluateFlagResponse);
+  // Mirrors POST /flags/{key}/enable - added so deployment-service's
+  // "Feature Flags enable new version" pipeline step (and any future
+  // caller) doesn't need a REST round-trip for something this simple.
+  // actor lives on FlagIdentifier's sibling EnableFlagRequest rather than
+  // being bolted onto FlagIdentifier itself, since FlagIdentifier is also
+  // used by GetFlag/reads that have no actor.
+  rpc EnableFlag(EnableFlagRequest) returns (FlagActionResponse);
   rpc Ping(arceus.gateway.PingRequest) returns (arceus.gateway.PingResponse);
 }

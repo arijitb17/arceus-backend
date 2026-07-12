@@ -4,6 +4,16 @@ server:
 grpc:
   server:
     port: ${NOTIFICATION_GRPC_PORT:9082}
+  client:
+    # Used by scheduler.RetryJobRegistrar to register the recurring
+    # notification-retry job - see NotificationRetryScheduler's Javadoc.
+    scheduler:
+      address: static://${SCHEDULER_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
+      negotiation-type: plaintext
+    # Used by featureflag.ChannelFlagGateService to gate per-channel sending behind a flag.
+    feature-flag:
+      address: static://${FEATURE_FLAG_GRPC_HOST:localhost}:${FEATURE_FLAG_GRPC_PORT:9087}
+      negotiation-type: plaintext
 
 spring:
   autoconfigure:
@@ -78,6 +88,33 @@ notification:
   max-attempts: 5
   retry-backoff-seconds: 30
 
+arceus:
+  notification:
+    # Where deployment.completed/failed/rolledback/cancelled outcomes get
+    # emailed - see DomainEventConsumer. Not per-user, so it's a single
+    # operator-configured mailbox rather than something read off the event.
+    deployment-alert-email: ${DEPLOYMENT_ALERT_EMAIL:deploy-alerts@arceus.local}
+
+    internal:
+      # Shared secret scheduler-service's HTTP_CALLBACK executor presents
+      # as ?token= when it POSTs to /internal/notifications/retry-failed -
+      # see RetryCallbackController / RetryJobRegistrar.
+      api-token: ${NOTIFICATION_INTERNAL_API_TOKEN:changeme-notification-internal-token}
+      # Base URL scheduler-service's HTTP_CALLBACK executor uses to call
+      # back into this service - must be reachable from scheduler-service's pod/host.
+      callback-base-url: ${NOTIFICATION_CALLBACK_BASE_URL:http://localhost:8082}
+
+    # x-internal-token this service must present when it calls
+    # scheduler-service's gRPC API - see GrpcClientConfig. Must match
+    # scheduler-service's own arceus.scheduler.internal.api-token exactly.
+    grpc-clients:
+      scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
+      feature-flag-token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}
+
+    feature-flags:
+      # See featureflag.ChannelFlagGateService.
+      environment: ${NOTIFICATION_FEATURE_FLAG_ENVIRONMENT:PRODUCTION}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -93,6 +130,14 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    mail:
+      # Our own MailHealthIndicator (config package) replaces this with a
+      # cached, non-blocking check - /actuator/health should never block on
+      # a live SMTP connection to smtp.gmail.com. That live check was
+      # routinely taking 1.5-3s, tripping monitoring-service's 2000ms poll
+      # timeout, and falsely marking this service DOWN.
+      enabled: false
 
 logging:
   pattern:

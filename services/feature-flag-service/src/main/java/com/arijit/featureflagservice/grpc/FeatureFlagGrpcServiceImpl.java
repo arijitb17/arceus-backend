@@ -100,6 +100,13 @@ public class FeatureFlagGrpcServiceImpl extends FeatureFlagGrpcServiceGrpc.Featu
     }
 
     @Override
+    public void enableFlag(EnableFlagRequest request, StreamObserver<FlagActionResponse> responseObserver) {
+        respondWithAction(responseObserver,
+                () -> flagService.enable(request.getKey(), mapper.parseEnvironment(request.getEnvironment()), blankToNull(request.getActor())),
+                "Flag enabled");
+    }
+
+    @Override
     public void listFlags(ListFlagsRequest request, StreamObserver<ListFlagsResponse> responseObserver) {
         int page = Math.max(request.getPage(), 0);
         int size = request.getSize() > 0 ? Math.min(request.getSize(), 100) : 20;

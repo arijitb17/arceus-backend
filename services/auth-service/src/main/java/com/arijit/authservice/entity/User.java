@@ -58,6 +58,14 @@ public class User {
     @Builder.Default
     private boolean phoneVerified = false;
 
+    // Distinct from isFullyVerified(): that's the user's own doing (OTP
+    // confirmation); this is an admin action (suspend an account without
+    // touching its verification state, so re-enabling doesn't require
+    // the user to re-verify anything).
+    @Column(name = "account_enabled", nullable = false)
+    @Builder.Default
+    private boolean accountEnabled = true;
+
     // The account can only log in once BOTH are true. This is what
     // CustomUserDetailsService reads to decide if Spring Security should
     // reject a login attempt with "account disabled".

@@ -41,9 +41,16 @@ start services/gateway-service gateway-service
 # there's nothing useful for it to observe until everyone else is up.
 start services/monitoring-service monitoring-service
 
+# deployment-service very last - it's a gRPC client of both scheduler-service
+# (scheduled deploys) and monitoring-service (pre/post-deploy health
+# verification), so starting it once both are already up means its own
+# /health check has something meaningful to report on immediately (gRPC
+# channels still connect lazily, so this ordering isn't strictly required).
+start services/deployment-service deployment-service
+
 cat <<'EOF'
 
-All 9 services are starting in the background:
+All 10 services are starting in the background:
   gateway-service       http://localhost:8090/health
   auth-service          http://localhost:8081/swagger-ui.html
   notification-service  http://localhost:8082/swagger-ui.html
@@ -53,6 +60,7 @@ All 9 services are starting in the background:
   scheduler-service     http://localhost:8086/swagger-ui.html
   feature-flag-service  http://localhost:8087/swagger-ui.html
   monitoring-service    http://localhost:8088/swagger-ui.html  (platform dashboard: /dashboard)
+  deployment-service    http://localhost:8089/swagger-ui.html
 
 All client traffic should go through gateway-service - the other ports are
 for direct/local debugging only.
