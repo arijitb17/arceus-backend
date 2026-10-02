@@ -102,5 +102,31 @@ public final class ArceusEventsTopology {
     public static final String RK_DEPLOYMENT_ROLLED_BACK = "deployment.rolledback";
     public static final String RK_DEPLOYMENT_CANCELLED = "deployment.cancelled";
 
+    // organization-service's tenant-hierarchy events. Same reasoning as
+    // every other block above: published onto this one shared exchange so
+    // audit-service's existing "#" binding captures every org/project/
+    // module/secret mutation for free. deployment-service additionally
+    // binds its own queue to the module.enable_requested/disable_requested
+    // keys specifically - since those are the events the requesting client
+    // waits on the result of, per ModuleEnablementService's javadoc.
+    public static final String RK_ORGANIZATION_CREATED = "organization.created";
+    public static final String RK_ORGANIZATION_MEMBER_ADDED = "organization.member_added";
+    public static final String RK_ORGANIZATION_MEMBER_REMOVED = "organization.member_removed";
+    public static final String RK_PROJECT_CREATED = "project.created";
+    public static final String RK_PROJECT_DELETED = "project.deleted";
+    public static final String RK_MODULE_ENABLE_REQUESTED = "module.enable_requested";
+    public static final String RK_MODULE_DISABLE_REQUESTED = "module.disable_requested";
+    public static final String RK_SECRET_CREATED = "secret.created";
+    public static final String RK_SECRET_REVOKED = "secret.revoked";
+
+    // Usage tracking (architecture design's usage/logs work, monitoring
+    // extension). Published by gateway-service - the one place every
+    // request already passes through - only for requests ApiKeyAuthFilter
+    // authenticated (i.e. SDK/API traffic with a resolved project scope,
+    // not Portal browser navigation). monitoring-service is the sole
+    // consumer, aggregating into daily rollups rather than storing one row
+    // per request - see UsageRollup's javadoc.
+    public static final String RK_USAGE_REQUEST_RECORDED = "usage.request_recorded";
+
     private ArceusEventsTopology() {}
 }

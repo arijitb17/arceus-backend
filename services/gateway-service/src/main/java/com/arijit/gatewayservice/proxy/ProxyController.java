@@ -1,18 +1,19 @@
 package com.arijit.gatewayservice.proxy;
 
-import com.arijit.arceus.grpc.gateway.AuditGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.AuthGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.CacheGatewayServiceGrpc;
-import com.arijit.arceus.grpc.gateway.DeploymentGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.FeatureFlagGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.HttpRequestMessage;
 import com.arijit.arceus.grpc.gateway.HttpResponseMessage;
 import com.arijit.arceus.grpc.gateway.MonitoringGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.NotificationGatewayServiceGrpc;
+import com.arijit.arceus.grpc.gateway.OrganizationGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.SchedulerGatewayServiceGrpc;
 import com.arijit.gatewayservice.error.ApiException;
 import com.arijit.gatewayservice.filter.RequestIdFilter;
+import com.arijit.gatewayservice.security.ApiKeyAuthFilter;
 import com.arijit.gatewayservice.security.JwtAuthFilter;
+import com.arijit.gatewayservice.usage.UsageEventPublisher;
 import io.grpc.StatusRuntimeException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,10 +33,9 @@ import java.util.function.Function;
  *   <li>matched to a downstream service via {@link Route},</li>
  *   <li>rewritten from the client-facing path to that service's own
  *       internal REST path (they don't all share the /api/&lt;service&gt;
- *       prefix - notification-service and audit-service predate the
- *       Gateway and keep their original paths, and monitoring-service's
- *       endpoints have no common prefix at all, hence the empty
- *       downstreamPrefix on MONITORING),</li>
+ *       prefix - notification-service predates the Gateway and keeps its
+ *       original paths, and monitoring-service's endpoints have no common
+ *       prefix at all, hence the empty downstreamPrefix on MONITORING),</li>
  *   <li>packed into a generic HttpRequestMessage and sent over gRPC,</li>
  *   <li>and the HttpResponseMessage that comes back is replayed onto the
  *       client's HttpServletResponse as-is.</li>
@@ -52,12 +52,11 @@ public class ProxyController {
     private enum Route {
         AUTH("/api/auth", "/api/auth"),
         NOTIFICATIONS("/api/notifications", "/notifications"),
-        AUDIT("/api/audit", "/audit-logs"),
         MONITORING("/api/monitoring", ""),
-        DEPLOYMENTS("/api/deployments", "/deployments"),
         SCHEDULER("/api/scheduler", "/jobs"),
         FEATURE_FLAGS("/api/feature-flags", "/flags"),
-        CACHE("/api/cache", "/cache");
+        CACHE("/api/cache", "/cache"),
+        ORGANIZATIONS("/api/organizations", "/organizations");
 
         final String gatewayPrefix;
         final String downstreamPrefix;
@@ -74,14 +73,14 @@ public class ProxyController {
     }
 
     private final HttpMessageMapper httpMessageMapper;
+    private final UsageEventPublisher usageEventPublisher;
     private final AuthGatewayServiceGrpc.AuthGatewayServiceBlockingStub authGatewayStub;
     private final NotificationGatewayServiceGrpc.NotificationGatewayServiceBlockingStub notificationGatewayStub;
-    private final AuditGatewayServiceGrpc.AuditGatewayServiceBlockingStub auditGatewayStub;
     private final MonitoringGatewayServiceGrpc.MonitoringGatewayServiceBlockingStub monitoringGatewayStub;
-    private final DeploymentGatewayServiceGrpc.DeploymentGatewayServiceBlockingStub deploymentGatewayStub;
     private final SchedulerGatewayServiceGrpc.SchedulerGatewayServiceBlockingStub schedulerGatewayStub;
     private final FeatureFlagGatewayServiceGrpc.FeatureFlagGatewayServiceBlockingStub featureFlagGatewayStub;
     private final CacheGatewayServiceGrpc.CacheGatewayServiceBlockingStub cacheGatewayStub;
+    private final OrganizationGatewayServiceGrpc.OrganizationGatewayServiceBlockingStub organizationGatewayStub;
 
     @RequestMapping("/api/auth/**")
     public void auth(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -93,19 +92,9 @@ public class ProxyController {
         forward(Route.NOTIFICATIONS, notificationGatewayStub::forward, request, response);
     }
 
-    @RequestMapping("/api/audit/**")
-    public void audit(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        forward(Route.AUDIT, auditGatewayStub::forward, request, response);
-    }
-
     @RequestMapping("/api/monitoring/**")
     public void monitoring(HttpServletRequest request, HttpServletResponse response) throws IOException {
         forward(Route.MONITORING, monitoringGatewayStub::forward, request, response);
-    }
-
-    @RequestMapping("/api/deployments/**")
-    public void deployments(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        forward(Route.DEPLOYMENTS, deploymentGatewayStub::forward, request, response);
     }
 
     @RequestMapping("/api/scheduler/**")
@@ -123,6 +112,11 @@ public class ProxyController {
         forward(Route.CACHE, cacheGatewayStub::forward, request, response);
     }
 
+    @RequestMapping("/api/organizations/**")
+    public void organizations(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        forward(Route.ORGANIZATIONS, organizationGatewayStub::forward, request, response);
+    }
+
     private void forward(Route route, Function<HttpRequestMessage, HttpResponseMessage> call,
                           HttpServletRequest request, HttpServletResponse response) throws IOException {
 
@@ -132,12 +126,26 @@ public class ProxyController {
         @SuppressWarnings("unchecked")
         java.util.List<String> userRoles = (java.util.List<String>) request.getAttribute(JwtAuthFilter.USER_ROLES_ATTRIBUTE);
 
+        // Only set when ApiKeyAuthFilter authenticated this request via a
+        // project-scoped key - see that filter's javadoc.
+        HttpMessageMapper.TenantHeaders tenant = new HttpMessageMapper.TenantHeaders(
+                stringAttr(request, ApiKeyAuthFilter.TENANT_ORGANIZATION_ID_ATTRIBUTE),
+                stringAttr(request, ApiKeyAuthFilter.TENANT_PROJECT_ID_ATTRIBUTE),
+                stringAttr(request, ApiKeyAuthFilter.TENANT_ENVIRONMENT_ATTRIBUTE),
+                stringAttr(request, ApiKeyAuthFilter.API_KEY_TYPE_ATTRIBUTE),
+                stringAttr(request, ApiKeyAuthFilter.API_KEY_SCOPES_ATTRIBUTE));
+
         HttpRequestMessage message = httpMessageMapper.toRequestMessage(
-                request, downstreamPath, requestId, userEmail == null ? null : userEmail.toString(), userRoles);
+                request, downstreamPath, requestId, userEmail == null ? null : userEmail.toString(), userRoles, tenant);
 
         try {
             HttpResponseMessage result = call.apply(message);
             httpMessageMapper.writeResponse(result, response);
+
+            if (tenant.projectId() != null) {
+                usageEventPublisher.recordRequest(tenant.organizationId(), tenant.projectId(), tenant.environment(),
+                        route.name(), result.getStatus());
+            }
         } catch (StatusRuntimeException ex) {
             // The gRPC channel itself failed (service down, connection refused,
             // deadline exceeded) - distinct from the downstream service returning
@@ -147,5 +155,10 @@ public class ProxyController {
                     "Upstream service is currently unavailable (%s)".formatted(ex.getStatus().getCode()),
                     HttpStatus.BAD_GATEWAY);
         }
+    }
+
+    private String stringAttr(HttpServletRequest request, String attributeName) {
+        Object value = request.getAttribute(attributeName);
+        return value == null ? null : value.toString();
     }
 }

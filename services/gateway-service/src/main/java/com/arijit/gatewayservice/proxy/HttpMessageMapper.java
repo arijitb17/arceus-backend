@@ -18,7 +18,7 @@ import java.util.Set;
 /**
  * Translates between the servlet world (HttpServletRequest/Response) that
  * clients speak and the generic HttpRequestMessage/HttpResponseMessage
- * envelope that travels over gRPC to Auth/Notification/Audit. Keeping this
+ * envelope that travels over gRPC to every downstream service. Keeping this
  * in one place means ProxyController stays focused on routing decisions.
  */
 @Component
@@ -35,12 +35,33 @@ public class HttpMessageMapper {
     // BEFORE re-adding the Gateway's own authoritative values below. Without
     // this, a client could set its own "X-User-Roles: ROLE_ADMIN" and have
     // it forwarded downstream verbatim (or duplicated alongside the real
-    // one), which RoleHeaderAuthFilter in audit-service/notification-service
-    // would then blindly trust.
-    private static final Set<String> TRUST_HEADERS = Set.of("x-user-email", "x-user-roles");
+    // one), which RoleHeaderAuthFilter in notification-service would then
+    // blindly trust. The five X-Tenant-*/X-Api-Key-* headers exist for the
+    // same reason once ApiKeyAuthFilter started resolving project scope -
+    // see that filter's javadoc.
+    private static final Set<String> TRUST_HEADERS = Set.of(
+            "x-user-email", "x-user-roles",
+            "x-tenant-organization-id", "x-tenant-project-id", "x-tenant-environment",
+            "x-api-key-type", "x-api-key-scopes");
+
+    /**
+     * Carries the project scope ApiKeyAuthFilter resolved from a project-
+     * scoped API key (architecture design §7) - null fields (or a null
+     * instance entirely) mean "platform-level request, no project scope",
+     * the common case for JWT-authenticated browser traffic. See
+     * ApiKeyAuthFilter's javadoc for what's actually enforced downstream
+     * today versus what's just propagated for future use.
+     */
+    public record TenantHeaders(String organizationId, String projectId, String environment, String keyType, String scopes) {}
 
     public HttpRequestMessage toRequestMessage(HttpServletRequest request, String downstreamPath,
                                                 String requestId, String userEmail, java.util.List<String> userRoles) throws IOException {
+        return toRequestMessage(request, downstreamPath, requestId, userEmail, userRoles, null);
+    }
+
+    public HttpRequestMessage toRequestMessage(HttpServletRequest request, String downstreamPath,
+                                                String requestId, String userEmail, java.util.List<String> userRoles,
+                                                TenantHeaders tenant) throws IOException {
         HttpRequestMessage.Builder builder = HttpRequestMessage.newBuilder()
                 .setRequestId(requestId == null ? "" : requestId)
                 .setMethod(request.getMethod())
@@ -80,7 +101,21 @@ public class HttpMessageMapper {
                     .build());
         }
 
+        if (tenant != null) {
+            addHeaderIfPresent(builder, "X-Tenant-Organization-Id", tenant.organizationId());
+            addHeaderIfPresent(builder, "X-Tenant-Project-Id", tenant.projectId());
+            addHeaderIfPresent(builder, "X-Tenant-Environment", tenant.environment());
+            addHeaderIfPresent(builder, "X-Api-Key-Type", tenant.keyType());
+            addHeaderIfPresent(builder, "X-Api-Key-Scopes", tenant.scopes());
+        }
+
         return builder.build();
+    }
+
+    private void addHeaderIfPresent(HttpRequestMessage.Builder builder, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            builder.addHeaders(HttpHeader.newBuilder().setName(name).setValue(value).build());
+        }
     }
 
     public void writeResponse(HttpResponseMessage message, HttpServletResponse response) throws IOException {

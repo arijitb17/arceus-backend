@@ -1,6 +1,7 @@
 package com.arijit.gatewayservice.live;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -17,6 +18,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * exchange binding out to however many competing consumers exist, so no
  * client misses events, they just may connect to a different instance on
  * reconnect), but worth knowing if this ever needs cross-instance fan-out.
+ * <p>
+ * Also sends a periodic heartbeat (see {@link #sendHeartbeats()}) - without
+ * one, a genuinely idle connection (no domain events at all) sends zero
+ * bytes after the initial response, which both looks indistinguishable
+ * from "still connecting" to a client and risks an intermediary proxy/load
+ * balancer silently timing out and dropping it.
  */
 @Component
 @Slf4j
@@ -48,6 +55,21 @@ public class SseEmitterRegistry {
                 emitters.remove(emitter);
             }
         }
+    }
+
+    /**
+     * A named "heartbeat" event (not a bare SSE comment) so the frontend's
+     * hand-rolled parser - which only recognizes `event:`/`data:` frames,
+     * see StreamSse's javadoc - can treat it exactly like any other event
+     * for the purpose of "the connection is definitely alive", without
+     * having to special-case comment-only frames.
+     */
+    @Scheduled(fixedRate = 20_000)
+    public void sendHeartbeats() {
+        if (emitters.isEmpty()) {
+            return;
+        }
+        broadcast("heartbeat", java.util.Map.of("at", java.time.Instant.now().toString()));
     }
 
     public int connectedClients() {

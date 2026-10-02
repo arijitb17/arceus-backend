@@ -42,6 +42,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (request.getAttribute(USER_EMAIL_ATTRIBUTE) != null) {
+            // Already authenticated by ApiKeyAuthFilter (runs immediately
+            // before this filter - see FilterConfig's ordering and that
+            // filter's javadoc). A request can't present both an API key
+            // and a JWT in any flow this platform has, but if it somehow
+            // did, the API key - having already been verified against
+            // auth-service - wins rather than being silently overwritten.
+            chain.doFilter(request, response);
+            return;
+        }
+
         String header = request.getHeader("Authorization");
         String token;
         if (header != null && header.startsWith("Bearer ")) {

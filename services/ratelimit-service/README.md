@@ -1,6 +1,6 @@
 # ratelimit-service
 
-Reusable, out-of-process rate-limiting decision service - see roadmap Step 5.
+Reusable, out-of-process rate-limiting decision service - standalone sliding-window and token-bucket limiter.
 
 ## Why this exists alongside `shared/arceus-ratelimit`
 
@@ -10,10 +10,9 @@ connection - it's a fixed-window counter, cheap, zero network hop, and
 that's exactly what auth-service uses it for today (see its
 `SecurityConfig`/controllers).
 
-This service is different on purpose: it's the thing a **future API
-Gateway** (or any non-Spring caller) asks over HTTP, and it implements the
-two algorithms the roadmap actually asks for here - Sliding Window and Token
-Bucket - neither of which the shared library does. Don't collapse the two;
+This service is different on purpose: it's the thing the **API
+Gateway** (or any non-Spring caller) asks, and it implements Sliding Window
+and Token Bucket - neither of which the shared library does. Don't collapse the two;
 they solve different problems (in-process cheap-and-approximate vs.
 out-of-process accurate-and-shared).
 
@@ -49,7 +48,7 @@ Token bucket (allows bursts up to capacity, then a steady trickle):
 back to `limit` for capacity if `capacity` isn't set, so simple callers can
 use the same field name either way.)
 
-Response (matches the roadmap spec exactly):
+Response:
 
 ```json
 {
@@ -72,7 +71,7 @@ Response (matches the roadmap spec exactly):
   at `capacity`), then tries to spend one. Also one Lua script, same
   atomicity reason.
 
-Storage is Redis only, per the roadmap - no database here.
+Storage is Redis only, no database here.
 
 ## Running it
 
@@ -88,13 +87,11 @@ Swagger UI at `http://localhost:8084/swagger-ui.html`.
 
 - **Callers must supply their own `key`.** This service has no idea what a
   "user" or "endpoint" is - namespacing (`login:ip:...`, `api:user:...`) is
-  entirely the caller's responsibility. That's deliberate (see roadmap's
-  future usage diagram: API Gateway -> this service -> everything else),
+  entirely the caller's responsibility. That's deliberate (Gateway -> this service),
   but means there's no protection against two callers accidentally
   colliding on the same key today.
 - **No admin/introspection endpoint** to see a key's current state without
   consuming from it - useful for debugging, not built yet.
-- **Not wired into any other service yet.** auth-service still relies on
-  `shared/arceus-ratelimit` for its own endpoints; nothing currently calls
-  `POST /check` in anger. That's expected to change once the API Gateway
-  exists.
+- **Callers.** gateway-service calls this over gRPC (`RateLimitCheck`) on every protected request
+  and fails open if it is unreachable. Individual services use `shared/arceus-ratelimit` for
+  their own endpoints. gRPC port: 9084.

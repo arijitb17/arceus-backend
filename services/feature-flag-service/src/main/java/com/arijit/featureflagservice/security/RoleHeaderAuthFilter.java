@@ -19,7 +19,7 @@ import java.util.List;
  * feature-flag-service never sees a client's JWT directly - the Gateway
  * already verified it and forwards who the caller is via
  * {@code X-User-Email}/{@code X-User-Roles} headers, same convention as
- * audit-service and notification-service. This filter trusts those
+ * notification-service. This filter trusts those
  * headers and builds the same kind of Authentication a JWT filter would,
  * so {@code @PreAuthorize} on FlagController works exactly like it would
  * in a service that validates tokens itself.

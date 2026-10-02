@@ -19,7 +19,7 @@ public record GatewayProperties(
 
     /**
      * The Gateway is the one public REST surface browsers actually talk to
-     * (Auth/Notification/Audit are only reachable through it), so CORS has
+     * (every downstream service is only reachable through it), so CORS has
      * to be handled here - the per-service CORS config in auth-service's
      * SecurityConfig only applies to requests that reach auth-service
      * directly (e.g. the OAuth2 redirect flow), not requests proxied

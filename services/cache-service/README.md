@@ -1,7 +1,7 @@
 # cache-service
 
 The reusable, Redis-backed caching platform every Arceus service talks to
-instead of opening its own Redis connection - see roadmap Phase 3.
+instead of opening its own Redis connection.
 
 ## Why this exists
 

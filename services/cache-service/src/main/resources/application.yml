@@ -81,6 +81,11 @@ arceus:
         - notification
         - ratelimit
         - featureflag
+        # For demo/index.html's Cache module - a real project's own
+        # namespaces would go here the same way, chosen deliberately
+        # rather than left wide open (see allow-unlisted below for why
+        # this is an allow-list at all).
+        - demo
       # When true, namespaces outside the allow-list above are still
       # accepted (useful in early development). Keep false anywhere this
       # service is shared across teams/services.

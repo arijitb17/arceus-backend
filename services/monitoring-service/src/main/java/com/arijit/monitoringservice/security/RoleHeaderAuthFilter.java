@@ -19,7 +19,7 @@ import java.util.List;
  * monitoring-service never sees a client's JWT directly - the Gateway
  * already verified it and forwards who the caller is via
  * {@code X-User-Email}/{@code X-User-Roles} headers, same convention as
- * feature-flag-service/audit-service/notification-service. This filter
+ * feature-flag-service/notification-service. This filter
  * trusts those headers and builds the same kind of Authentication a JWT
  * filter would, so {@code @PreAuthorize} on AlertController works exactly
  * like it would in a service that validates tokens itself.

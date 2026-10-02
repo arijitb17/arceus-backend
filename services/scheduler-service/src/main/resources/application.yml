@@ -14,8 +14,8 @@ spring:
   autoconfigure:
     exclude:
       # Spring Security here is for the REST layer only, not gRPC - gRPC
-      # auth is handled by GrpcAuthInterceptor instead (see audit-service's
-      # application.yml for the same exclusion and why).
+      # auth is handled by GrpcAuthInterceptor instead (excluded so Spring
+      # Security's own gRPC auto-config doesn't also try to secure it).
       - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
 
   application:
@@ -139,8 +139,9 @@ arceus:
 
 logging:
   pattern:
-    # Same correlation-id convention as every other Arceus service - see
-    # audit-service's application.yml for the full rationale.
+    # Every Arceus service logs with this same correlation-id pattern so
+    # log lines from different services can be stitched together by
+    # correlationId when tracing a single request across the platform.
     level: "%5p [correlationId=%X{correlationId:-}]"
   level:
     com.arijit.schedulerservice: ${LOG_LEVEL_SCHEDULER_SERVICE:INFO}

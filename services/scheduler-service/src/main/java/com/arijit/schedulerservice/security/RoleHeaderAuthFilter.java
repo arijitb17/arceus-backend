@@ -19,7 +19,7 @@ import java.util.List;
  * scheduler-service never sees a client's JWT directly - the Gateway
  * already verified it and forwards who the caller is via
  * {@code X-User-Email}/{@code X-User-Roles} headers, same convention as
- * monitoring-service/feature-flag-service/audit-service/notification-service.
+ * monitoring-service/feature-flag-service/notification-service.
  * This filter trusts those headers and builds the same kind of
  * Authentication a JWT filter would.
  * <p>

@@ -1,6 +1,5 @@
 package com.arijit.gatewayservice.health;
 
-import com.arijit.arceus.grpc.gateway.AuditGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.AuthGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.NotificationGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.PingRequest;
@@ -20,7 +19,6 @@ public class ServiceHealthChecker {
 
     private final AuthGatewayServiceGrpc.AuthGatewayServiceBlockingStub authGatewayStub;
     private final NotificationGatewayServiceGrpc.NotificationGatewayServiceBlockingStub notificationGatewayStub;
-    private final AuditGatewayServiceGrpc.AuditGatewayServiceBlockingStub auditGatewayStub;
     private final RateLimitGrpcServiceGrpc.RateLimitGrpcServiceBlockingStub rateLimitStub;
 
     /** Service name -> "UP" or "DOWN", in a stable, deterministic order. */
@@ -28,7 +26,6 @@ public class ServiceHealthChecker {
         Map<String, String> statuses = new LinkedHashMap<>();
         statuses.put("auth-service", ping(authGatewayStub, AuthGatewayServiceGrpc.AuthGatewayServiceBlockingStub::ping));
         statuses.put("notification-service", ping(notificationGatewayStub, NotificationGatewayServiceGrpc.NotificationGatewayServiceBlockingStub::ping));
-        statuses.put("audit-service", ping(auditGatewayStub, AuditGatewayServiceGrpc.AuditGatewayServiceBlockingStub::ping));
         statuses.put("ratelimit-service", ping(rateLimitStub, RateLimitGrpcServiceGrpc.RateLimitGrpcServiceBlockingStub::ping));
         return statuses;
     }

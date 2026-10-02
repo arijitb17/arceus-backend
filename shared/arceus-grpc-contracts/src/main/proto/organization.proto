@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package arceus.organization;
+
+option java_package = "com.arijit.arceus.grpc.organization";
+option java_multiple_files = true;
+option java_outer_classname = "OrganizationProto";
+
+import "gateway.proto";
+
+// Lets another in-platform service (auth-service, to start - see
+// AuthTenantProvisioningGrpcService's sibling use in
+// ApiKeyService#createProjectKey) ask "is this user allowed to manage
+// project-level resources for this organization" without duplicating
+// organization-service's own OrgAccessGuard/OrgRole logic. Deliberately a
+// read-only query, not a general-purpose membership API - callers that
+// need more than a yes/no manager check should call organization-service's
+// REST API through the Gateway like everything else does.
+message CheckManagerAccessRequest {
+  string organization_id = 1;
+  string user_email = 2;
+}
+
+message CheckManagerAccessResponse {
+  bool authorized = 1;
+  // "OWNER" | "ADMIN" | "MEMBER" | "" (not a member at all) - "" and
+  // "MEMBER" both mean authorized=false, but exposed separately since a
+  // caller may want to give a more specific error message for each.
+  string role = 2;
+}
+
+// Same shape as CheckManagerAccess, but authorized=true for ANY role
+// (OWNER/ADMIN/MEMBER) - for read-only cross-service calls that only need
+// "is this person part of the organization at all", not "can they manage
+// it". audit-service's scoped log endpoint (architecture design's usage/
+// logs work) is the first caller.
+message CheckMemberAccessResponse {
+  bool authorized = 1;
+  string role = 2;
+}
+
+message CheckProjectExistsRequest {
+  string organization_id = 1;
+  string project_id = 2;
+}
+
+message CheckProjectExistsResponse {
+  bool exists = 1;
+}
+
+// Used by deployment-service's GitHub webhook handler (architecture design
+// §6) to decide which environment, if any, a given push should deploy to.
+message GetTrackedBranchesRequest {
+  string project_id = 1;
+}
+
+message TrackedBranch {
+  string environment = 1;  // DEVELOPMENT | STAGING | PRODUCTION
+  string branch = 2;       // empty if this environment has no tracked branch set (manual-deploy-only)
+}
+
+message GetTrackedBranchesResponse {
+  repeated TrackedBranch branches = 1;
+}
+
+service OrganizationAccessGrpcService {
+  rpc CheckManagerAccess(CheckManagerAccessRequest) returns (CheckManagerAccessResponse);
+  rpc CheckMemberAccess(CheckManagerAccessRequest) returns (CheckMemberAccessResponse);
+  rpc CheckProjectExists(CheckProjectExistsRequest) returns (CheckProjectExistsResponse);
+  rpc GetTrackedBranches(GetTrackedBranchesRequest) returns (GetTrackedBranchesResponse);
+  rpc Ping(arceus.gateway.PingRequest) returns (arceus.gateway.PingResponse);
+}

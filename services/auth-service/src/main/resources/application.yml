@@ -15,6 +15,11 @@ grpc:
     feature-flag:
       address: static://${FEATURE_FLAG_GRPC_HOST:localhost}:${FEATURE_FLAG_GRPC_PORT:9087}
       negotiation-type: plaintext
+    # Used by ApiKeyService#createProjectKey to authorize project-scoped
+    # API key issuance against organization-service's own OrgRole model.
+    organization:
+      address: static://${ORGANIZATION_GRPC_HOST:localhost}:${ORGANIZATION_GRPC_PORT:9090}
+      negotiation-type: plaintext
 
 spring:
   autoconfigure:
@@ -90,6 +95,19 @@ jwt:
   secret: ${JWT_SECRET}
   access-token-expiration-ms: 900000        # 15 minutes
   refresh-token-expiration-ms: 604800000    # 7 days
+
+arceus:
+  auth:
+    api-key:
+      # AES-256 key, 32 raw bytes base64-encoded, used by ApiKeyCryptoService
+      # to store every API key in a form that CAN be decrypted again later -
+      # see that class's javadoc for what this trades away versus hash-only
+      # storage. Generate a real one per environment with:
+      #   openssl rand -base64 32
+      # The committed default below is an obviously-fake all-zero key for
+      # local dev only - always override this in anything beyond your own
+      # machine.
+      encryption-key: ${AUTH_API_KEY_ENCRYPTION_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
 
 app:
   super-admin:

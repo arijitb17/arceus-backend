@@ -1,79 +1,148 @@
 <#
 .SYNOPSIS
-    Zips the current project folder into a clean archive, excluding build
-    output, IDE folders, logs, and other caches - only real source/config
-    files go in.
+Creates a clean backup zip of the Arceus Platform source code.
 
-.USAGE
-    From the project root (E:\projects\arceus-platform), in PowerShell:
+Excludes:
+- Git metadata
+- IDE folders
+- Maven build output
+- Next.js build/cache
+- Node modules
+- Logs
+- Temporary files
 
-        .\zip-project.ps1
-
-    Optional custom output name:
-
-        .\zip-project.ps1 -OutputZip arceus-backup.zip
-
-    Optional custom source folder (defaults to current directory):
-
-        .\zip-project.ps1 -SourceDir E:\projects\arceus-platform
-
-.WHAT GETS EXCLUDED
-    Directories (anywhere in the tree):
-        target, .git, .idea, .vscode, node_modules, logs, out, bin
-
-    Files (anywhere in the tree):
-        *.class, *.log, *.tmp, .DS_Store, Thumbs.db
-
-    Everything else - source code, poms, application.yml, scripts, the
-    .env file, etc. - is included as-is.
-
-.NOTE ON .env
-    The .env file IS included by default, since a "backup zip" that can't
-    actually restore a working setup isn't very useful. That file has real
-    credentials in it (see the rotation checklist inside it) - if you're
-    sending this zip anywhere other than your own backup drive, strip
-    .env out first or rotate those credentials.
+Keeps:
+- Spring Boot source
+- Next.js source
+- Shared libraries
+- Scripts
+- Docker files
+- .env
+- pom.xml
+- package.json
+- package-lock.json
+- README
 #>
 
 param(
     [string]$SourceDir = (Get-Location).Path,
-    [string]$OutputZip = "arceus-platform-$(Get-Date -Format 'yyyyMMdd-HHmmss').zip"
+    [string]$OutputZip = "E:\projects\arceus-platform-$(Get-Date -Format 'yyyyMMdd-HHmmss').zip"
 )
 
 $ErrorActionPreference = "Stop"
 
-$excludeDirs  = @('target', '.git', '.idea', '.vscode', 'node_modules', 'logs', 'out', 'bin')
-$excludeFiles = @('*.class', '*.log', '*.tmp', '.DS_Store', 'Thumbs.db')
+# Directories to exclude (anywhere in the tree)
+$excludeDirs = @(
+    ".git",
+    ".idea",
+    ".vscode",
+
+    "target",
+    "build",
+    "out",
+    "bin",
+
+    "node_modules",
+    ".next",
+    ".turbo",
+    ".vercel",
+
+    ".gradle",
+
+    "logs",
+    "coverage",
+
+    ".cache",
+    ".parcel-cache",
+
+    "dist",
+
+    "__pycache__",
+    ".pytest_cache",
+
+    ".DS_Store"
+)
+
+# File patterns to exclude
+$excludeFiles = @(
+    "*.class",
+    "*.jar",
+    "*.war",
+    "*.ear",
+
+    "*.log",
+    "*.tmp",
+
+    "*.pid",
+    "*.lock",
+
+    "*.tsbuildinfo",
+
+    "Thumbs.db",
+    ".DS_Store"
+)
 
 $staging = Join-Path $env:TEMP ("zip-staging-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $staging | Out-Null
 
-Write-Host "==> Copying clean source tree to staging folder..."
-Write-Host "    (excluding: $($excludeDirs -join ', '))"
+Write-Host ""
+Write-Host "==========================================="
+Write-Host " Arceus Platform Backup"
+Write-Host "==========================================="
+Write-Host ""
 
-# robocopy mirrors the tree while skipping the excluded dirs/files - far more
-# reliable for this than trying to filter file-by-file with Compress-Archive.
+Write-Host "Source      : $SourceDir"
+Write-Host "Destination : $OutputZip"
+Write-Host ""
+
+Write-Host "Copying project..."
+
 $robocopyArgs = @(
-    $SourceDir, $staging, '/E',
-    '/XD'
-) + $excludeDirs + @('/XF') + $excludeFiles + @(
-    '/NFL', '/NDL', '/NJH', '/NJS', '/NC', '/NS', '/NP'
+    $SourceDir,
+    $staging,
+    "/E",
+    "/XD"
+) + $excludeDirs + @(
+    "/XF"
+) + $excludeFiles + @(
+    "/R:2",
+    "/W:1",
+    "/NFL",
+    "/NDL",
+    "/NJH",
+    "/NJS",
+    "/NC",
+    "/NS",
+    "/NP"
 )
 
 robocopy @robocopyArgs | Out-Null
-# robocopy exit codes 0-7 are all "success" (8+ mean a real error)
+
 if ($LASTEXITCODE -ge 8) {
-    Remove-Item -Recurse -Force $staging -ErrorAction SilentlyContinue
-    throw "robocopy failed with exit code $LASTEXITCODE"
+    Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue
+    throw "Robocopy failed with exit code $LASTEXITCODE"
 }
 
-Write-Host "==> Creating archive: $OutputZip"
-if (Test-Path $OutputZip) { Remove-Item $OutputZip }
-Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $OutputZip -CompressionLevel Optimal
+if (Test-Path $OutputZip) {
+    Remove-Item $OutputZip -Force
+}
 
-Write-Host "==> Cleaning up staging folder..."
-Remove-Item -Recurse -Force $staging
+Write-Host "Creating zip..."
 
-$sizeMB = [math]::Round((Get-Item $OutputZip).Length / 1MB, 2)
+Compress-Archive `
+    -Path (Join-Path $staging "*") `
+    -DestinationPath $OutputZip `
+    -CompressionLevel Optimal
+
+Remove-Item $staging -Recurse -Force
+
+$zip = Get-Item $OutputZip
+$size = [math]::Round($zip.Length / 1MB,2)
+
 Write-Host ""
-Write-Host "Done: $OutputZip ($sizeMB MB)"
+Write-Host "==========================================="
+Write-Host " Backup Complete"
+Write-Host "==========================================="
+Write-Host "File : $($zip.FullName)"
+Write-Host "Size : $size MB"
+Write-Host ""

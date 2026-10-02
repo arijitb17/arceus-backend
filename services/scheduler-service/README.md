@@ -129,8 +129,8 @@ don't want to go through the REST API. Same engine underneath
 ## RabbitMQ
 
 **Published** (onto the platform-wide `arceus.events.exchange` - the same
-bus auth-service's domain events use, so audit-service's existing `#`
-binding captures every job lifecycle transition for free):
+bus auth-service's domain events use, so any consumer bound with `#`,
+such as the Gateway's live-events stream, sees every job lifecycle transition):
 `job.scheduled`, `job.started`, `job.completed`, `job.failed`,
 `job.cancelled`, `job.expired`.
 

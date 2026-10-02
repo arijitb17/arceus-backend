@@ -30,14 +30,13 @@
         <module>shared/arceus-grpc-contracts</module>
         <module>services/auth-service</module>
         <module>services/notification-service</module>
-        <module>services/audit-service</module>
         <module>services/ratelimit-service</module>
         <module>services/cache-service</module>
         <module>services/scheduler-service</module>
         <module>services/feature-flag-service</module>
         <module>services/gateway-service</module>
         <module>services/monitoring-service</module>
-        <module>services/deployment-service</module>
+        <module>services/organization-service</module>
     </modules>
 
 </project>

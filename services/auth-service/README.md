@@ -2,8 +2,8 @@
 
 Owns identity: registration, login, JWTs, refresh tokens, Google/GitHub
 OAuth2, OTP verification, and account management (password reset, change
-password/email/phone). It does **not** send any email or SMS itself anymore
-- see `notification-service` and the top-level `README-DROP.md` for why.
+password/email/phone). It does **not** send any email or SMS itself:
+OTPs are published to RabbitMQ and delivered by `notification-service`.
 
 ## Endpoints
 
@@ -23,8 +23,14 @@ password/email/phone). It does **not** send any email or SMS itself anymore
 | POST | `/api/auth/change-phone/request` | yes | Step 1: send code to new phone |
 | POST | `/api/auth/change-phone/verify` | yes | Step 2: confirm, phone updated |
 | POST | `/api/auth/refresh` | no | Rotates a refresh token |
+| POST | `/api/auth/oauth2/exchange` | no | Exchanges an OAuth2 login code for tokens |
 | POST | `/api/auth/logout` | no | Revokes a refresh token |
 | GET | `/api/auth/me` | yes | Current user profile |
+| GET/DELETE | `/api/auth/sessions[/{id}]` | yes | List / revoke your own sessions |
+| GET/POST/DELETE | `/api/auth/api-keys[/{id}]` | yes | Personal API keys (`/{id}/reveal` shows one again) |
+| GET/POST/DELETE | `/api/auth/organizations/{org}/projects/{project}/api-keys` | yes | Project API keys |
+| GET/PATCH/DELETE | `/api/auth/users/**` | admin | List users, change roles/status, manage their sessions |
+| GET/POST/PUT/PATCH/DELETE | `/api/auth/permissions`, `/api/auth/roles` | admin | RBAC management |
 
 Swagger UI: `http://localhost:8081/swagger-ui.html`
 
@@ -32,8 +38,8 @@ Swagger UI: `http://localhost:8081/swagger-ui.html`
 
 Needs: Postgres, Redis, RabbitMQ, and **notification-service running** (or
 OTP emails/SMS just never arrive - the code still works, the message just
-sits on the queue until something consumes it). See the top-level
-`README-DROP.md` for the full multi-service startup order.
+sits on the queue until something consumes it). See the root README for
+how to start the whole stack.
 
 ## Design notes worth knowing about
 
@@ -48,7 +54,8 @@ sits on the queue until something consumes it). See the top-level
   for now, would need email-verification-before-linking in a real product.
 - **contextLoads test** needs real Redis + RabbitMQ available to pass now.
   Testcontainers would fix this properly later.
-- **CORS is wide open** (`*`) - tighten before this sits behind a real
-  gateway or gets a real frontend.
+- **CORS** is handled at gateway-service (`GATEWAY_CORS_ALLOWED_ORIGINS`).
 - **No dead-letter queue** yet for failed OTP deliveries - a bad email/SMS
   currently just gets logged and dropped by notification-service.
+- **Super admin bootstrap**: set `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` before first start;
+  an existing account is never modified.

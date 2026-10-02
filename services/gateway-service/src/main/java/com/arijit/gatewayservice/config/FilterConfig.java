@@ -7,8 +7,10 @@ import com.arijit.gatewayservice.filter.RequestIdFilter;
 import com.arijit.gatewayservice.filter.RequestLoggingFilter;
 import com.arijit.gatewayservice.ratelimit.RateLimitFilter;
 import com.arijit.gatewayservice.ratelimit.RateLimitGatewayClient;
+import com.arijit.gatewayservice.security.ApiKeyAuthFilter;
 import com.arijit.gatewayservice.security.JwtAuthFilter;
 import com.arijit.gatewayservice.security.JwtVerificationService;
+import com.arijit.arceus.grpc.apikey.ApiKeyProvisioningGrpcServiceGrpc;
 import jakarta.servlet.Filter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -27,7 +29,10 @@ import java.util.List;
  *       the Gateway is the only REST surface browsers talk to directly</li>
  *   <li>RequestIdFilter - assigns/propagates a correlation id</li>
  *   <li>RequestLoggingFilter - times the whole request, logs once at the end</li>
- *   <li>JwtAuthFilter - rejects protected routes without a valid access token</li>
+ *   <li>ApiKeyAuthFilter - authenticates X-API-Key requests (project-scoped
+ *       SDK traffic); a request with no key passes straight through</li>
+ *   <li>JwtAuthFilter - rejects protected routes without a valid access
+ *       token, unless ApiKeyAuthFilter already authenticated the request</li>
  *   <li>RouteFlagFilter - per-route feature-flag kill-switch (see
  *       RouteFlagGatewayClient); runs before rate limiting so a disabled
  *       route doesn't spend a rate-limit budget slot for nothing</li>
@@ -55,23 +60,30 @@ public class FilterConfig {
     }
 
     @Bean
+    public FilterRegistrationBean<Filter> apiKeyAuthFilter(
+            ApiKeyProvisioningGrpcServiceGrpc.ApiKeyProvisioningGrpcServiceBlockingStub apiKeyValidationStub,
+            ErrorResponseWriter errorResponseWriter) {
+        return registration(new ApiKeyAuthFilter(apiKeyValidationStub, errorResponseWriter), 3);
+    }
+
+    @Bean
     public FilterRegistrationBean<Filter> jwtAuthFilter(GatewayProperties properties,
                                                          JwtVerificationService jwtVerificationService,
                                                          ErrorResponseWriter errorResponseWriter) {
-        return registration(new JwtAuthFilter(properties, jwtVerificationService, errorResponseWriter), 3);
+        return registration(new JwtAuthFilter(properties, jwtVerificationService, errorResponseWriter), 4);
     }
 
     @Bean
     public FilterRegistrationBean<Filter> routeFlagFilter(RouteFlagGatewayClient routeFlagGatewayClient,
                                                            ErrorResponseWriter errorResponseWriter) {
-        return registration(new RouteFlagFilter(routeFlagGatewayClient, errorResponseWriter), 4);
+        return registration(new RouteFlagFilter(routeFlagGatewayClient, errorResponseWriter), 5);
     }
 
     @Bean
     public FilterRegistrationBean<Filter> rateLimitFilter(GatewayProperties properties,
                                                            RateLimitGatewayClient rateLimitGatewayClient,
                                                            ErrorResponseWriter errorResponseWriter) {
-        return registration(new RateLimitFilter(properties, rateLimitGatewayClient, errorResponseWriter), 5);
+        return registration(new RateLimitFilter(properties, rateLimitGatewayClient, errorResponseWriter), 6);
     }
 
     private CorsConfigurationSource corsConfigurationSource(GatewayProperties properties) {
@@ -81,7 +93,7 @@ public class FilterConfig {
         // is true (the Authorization header rides along with every call).
         configuration.setAllowedOrigins(properties.cors() == null ? List.of() : properties.cors().originsOrEmpty());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id"));
+        configuration.setAllowedHeaders(List.of("Authorization", "X-API-Key", "Content-Type", "X-Request-Id"));
         configuration.setExposedHeaders(List.of("X-Request-Id", "X-RateLimit-Remaining", "Retry-After"));
         configuration.setAllowCredentials(true);
 

@@ -8,8 +8,7 @@ a recipient, and a code, get it delivered."
 auth-service (and later, any other service that needs to notify someone)
 publishes a message describing what to send; this service consumes it and
 does the actual sending. See `shared/arceus-events` for the message contract
-both sides agree on, and the top-level `README-DROP.md` for why the split
-exists at all.
+both sides agree on, and the root README for the overall flow.
 
 ## What it does NOT do
 
@@ -38,8 +37,8 @@ services have a legitimate direct connection to, not a service-to-service call.
 ## Running it
 
 Needs: Redis, RabbitMQ, and real credentials for Gmail SMTP + 2Factor (see
-the top-level `README-DROP.md`'s env var table - same `.env` file as
-auth-service, both services read from the one at the project root).
+`.env.example` - same `.env` file as auth-service, both services read
+from the one at the project root).
 
 ```powershell
 .\mvnw.cmd -pl services/notification-service spring-boot:run
@@ -71,11 +70,11 @@ message consumer) - the only way to observe it working is:
   format it stores phone numbers in, this breaks silently until someone
   notices OTPs stopped arriving.
 
-## Step 2: the generic /notifications API
+## The generic /notifications API
 
 Everything above (OtpConsumer) is the original, narrow "auth-service sends
 OTP emails" path and is untouched. Alongside it, this service now exposes
-the platform-wide notification pipeline from the roadmap:
+the platform-wide notification pipeline:
 
 ```
 POST /notifications
@@ -106,7 +105,7 @@ implement without touching the contract other services already depend on.
 
 Retries are polling-based (`NotificationRetryScheduler`, every
 `notification.retry-backoff-seconds`, default 30s) - no new infra, per the
-roadmap's "use only the infrastructure that is actually needed." A record
+the principle of using only infrastructure that is actually needed. A record
 that keeps failing past `notification.max-attempts` (default 5) just stays
 `FAILED` - there's no dead-letter queue here either, same caveat as above.
 
@@ -114,5 +113,4 @@ that keeps failing past `notification.max-attempts` (default 5) just stays
 (bound only to the `user.registered` routing key) and calls this same
 pipeline to send the `WELCOME` email whenever auth-service publishes a
 `UserRegisteredEvent` - this is the "Register User -> Publish event ->
-Notification Service -> Welcome Email" flow from the roadmap's Step 3
-diagram.
+Notification Service -> Welcome Email" flow.

@@ -4,6 +4,11 @@ server:
 grpc:
   server:
     port: ${MONITORING_GRPC_PORT:9088}
+  client:
+    # Used to authorize the project-scoped usage endpoint - see GrpcClientConfig.
+    organization:
+      address: static://${ORGANIZATION_GRPC_HOST:localhost}:${ORGANIZATION_GRPC_PORT:9090}
+      negotiation-type: plaintext
 
 spring:
   autoconfigure:
@@ -119,10 +124,6 @@ arceus:
         base-url: ${NOTIFICATION_BASE_URL:http://localhost:8082}
         grpc-host: ${NOTIFICATION_GRPC_HOST:localhost}
         grpc-port: ${NOTIFICATION_GRPC_PORT:9082}
-      audit-service:
-        base-url: ${AUDIT_BASE_URL:http://localhost:8083}
-        grpc-host: ${AUDIT_GRPC_HOST:localhost}
-        grpc-port: ${AUDIT_GRPC_PORT:9083}
       ratelimit-service:
         base-url: ${RATELIMIT_BASE_URL:http://localhost:8084}
         grpc-host: ${RATELIMIT_GRPC_HOST:localhost}
@@ -139,19 +140,21 @@ arceus:
         base-url: ${FEATURE_FLAG_BASE_URL:http://localhost:8087}
         grpc-host: ${FEATURE_FLAG_GRPC_HOST:localhost}
         grpc-port: ${FEATURE_FLAG_GRPC_PORT:9087}
-      monitoring-service:
-        base-url: ${MONITORING_BASE_URL:http://localhost:8088}
-        grpc-host: ${MONITORING_GRPC_HOST:}
-        grpc-port: ${MONITORING_GRPC_PORT:0}
-      deployment-service:
-        base-url: ${DEPLOYMENT_BASE_URL:http://localhost:8089}
-        grpc-host: ${DEPLOYMENT_GRPC_HOST:localhost}
-        grpc-port: ${DEPLOYMENT_GRPC_PORT:9089}
+      # organization-service doesn't poll itself, so 9 targets (of the 10
+      # services in this platform - gateway/auth/notification/ratelimit/
+      # cache/scheduler/feature-flag/organization, plus monitoring itself)
+      # is the full expected count.
+      organization-service:
+        base-url: ${ORGANIZATION_BASE_URL:http://localhost:8091}
+        grpc-host: ${ORGANIZATION_GRPC_HOST:localhost}
+        grpc-port: ${ORGANIZATION_GRPC_PORT:9090}
 
 logging:
   pattern:
-    # Same correlation-id convention as every other Arceus service - see
-    # audit-service's application.yml for the full rationale.
+    # Every Arceus service logs with this same correlation-id pattern so
+    # log lines from different services can be stitched together by
+    # correlationId when tracing a single request across the platform -
+    # see CorrelationIdFilter for where that MDC value gets set.
     level: "%5p [correlationId=%X{correlationId:-}]"
   level:
     com.arijit.monitoringservice: ${LOG_LEVEL_MONITORING_SERVICE:INFO}

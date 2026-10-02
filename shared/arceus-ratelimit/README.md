@@ -1,5 +1,8 @@
 # arceus-ratelimit
 
+> This is the in-process limiter. For the shared, out-of-process limiter (sliding window / token
+> bucket) used by the Gateway, see `services/ratelimit-service`.
+
 A `@RateLimited` annotation + Redis-backed limiter, shared by any service
 that needs to cap how often something can be called - no separate
 rate-limit service, no extra network hop on the request path.
@@ -89,14 +92,10 @@ public ResponseEntity<Map<String, Object>> handleRateLimitExceeded(RateLimitExce
   protection; revisit per-bucket if a specific rule needs a hard cap with
   no boundary burst.
 - **`X-Forwarded-For` is trusted as-is** for `perIp` resolution
-  (`ClientIpResolver`). That's only safe once a reverse proxy or
-  gateway-service sits in front of every service and sets that header
-  itself, overwriting anything a client sent. Right now, with services
-  reachable directly, a client can spoof this header to dodge `perIp`
-  limiting by claiming a different IP each request. Revisit the moment
-  gateway-service exists and becomes the sole public entry point - at that
-  point this class is correct as-is, it just needs the gateway to be the
-  trustworthy source of that header.
+  (`ClientIpResolver`). That's only safe when gateway-service is the sole
+  public entry point and sets that header itself. If a service port is
+  exposed directly, a client can spoof it to dodge `perIp` limiting, so
+  don't publish service ports in production.
 - **No per-bucket configuration outside the annotation** - limits and
   windows are hardcoded at the call site, not externalized to
   `application.yml`. Fine for a project this size; if limits need to be

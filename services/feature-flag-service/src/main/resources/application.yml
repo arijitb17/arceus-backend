@@ -117,8 +117,9 @@ arceus:
 
 logging:
   pattern:
-    # Same correlation-id convention as every other Arceus service - see
-    # audit-service's application.yml for the full rationale.
+    # Every Arceus service logs with this same correlation-id pattern so
+    # log lines from different services can be stitched together by
+    # correlationId when tracing a single request across the platform.
     level: "%5p [correlationId=%X{correlationId:-}]"
   level:
     com.arijit.featureflagservice: ${LOG_LEVEL_FEATURE_FLAG_SERVICE:INFO}

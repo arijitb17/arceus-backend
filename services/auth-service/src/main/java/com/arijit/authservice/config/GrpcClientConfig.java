@@ -1,6 +1,7 @@
 package com.arijit.authservice.config;
 
 import com.arijit.arceus.grpc.featureflag.FeatureFlagGrpcServiceGrpc;
+import com.arijit.arceus.grpc.organization.OrganizationAccessGrpcServiceGrpc;
 import com.arijit.arceus.grpc.scheduler.SchedulerGrpcServiceGrpc;
 import io.grpc.Metadata;
 import io.grpc.stub.MetadataUtils;
@@ -10,17 +11,21 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Two blocking stubs:
+ * Three blocking stubs:
  * <ul>
  *   <li>{@code scheduler} - used by scheduler.SessionCleanupJobRegistrar to
  *   register the recurring expired-session-cleanup job.</li>
  *   <li>{@code feature-flag} - used by featureflag.FeatureFlagGateService
  *   to gate configurable auth actions (e.g. registration) behind a flag.</li>
+ *   <li>{@code organization} - used by ApiKeyService#createProjectKey to
+ *   check the caller is an OWNER/ADMIN of the target organization before
+ *   issuing a project-scoped key (architecture design §7), without
+ *   duplicating organization-service's own OrgRole logic here.</li>
  * </ul>
- * Both targets run their own GrpcAuthInterceptor that rejects any RPC but
- * Ping without an {@code x-internal-token} matching that target's own
- * {@code arceus.<service>.internal.api-token} - so both stubs are built
- * with that header pre-attached via {@link MetadataUtils}.
+ * The first two targets run their own GrpcAuthInterceptor requiring an
+ * {@code x-internal-token}; organization-service does not (it trusts its
+ * caller's network boundary the same way auth-service's own Gateway
+ * forwarding RPC does), so that stub is built with no token attached.
  */
 @Configuration
 public class GrpcClientConfig {
@@ -48,5 +53,10 @@ public class GrpcClientConfig {
         metadata.put(TOKEN_HEADER, featureFlagToken);
         return FeatureFlagGrpcServiceGrpc.newBlockingStub(channels.createChannel("feature-flag"))
                 .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata));
+    }
+
+    @Bean
+    public OrganizationAccessGrpcServiceGrpc.OrganizationAccessGrpcServiceBlockingStub organizationAccessStub(GrpcChannelFactory channels) {
+        return OrganizationAccessGrpcServiceGrpc.newBlockingStub(channels.createChannel("organization"));
     }
 }

@@ -46,6 +46,14 @@
             <artifactId>grpc-server-spring-boot-starter</artifactId>
             <version>${grpc-spring.version}</version>
         </dependency>
+        <!-- gRPC client: calls organization-service's CheckMemberAccess to
+             authorize the developer-facing project usage endpoint - see
+             ProjectUsageController/GrpcClientConfig. -->
+        <dependency>
+            <groupId>net.devh</groupId>
+            <artifactId>grpc-client-spring-boot-starter</artifactId>
+            <version>${grpc-spring.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.arijit</groupId>
             <artifactId>arceus-grpc-contracts</artifactId>

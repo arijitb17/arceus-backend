@@ -9,9 +9,6 @@ grpc:
     notification:
       address: static://${NOTIFICATION_GRPC_HOST:localhost}:${NOTIFICATION_GRPC_PORT:9082}
       negotiation-type: plaintext
-    audit:
-      address: static://${AUDIT_GRPC_HOST:localhost}:${AUDIT_GRPC_PORT:9083}
-      negotiation-type: plaintext
     ratelimit:
       address: static://${RATELIMIT_GRPC_HOST:localhost}:${RATELIMIT_GRPC_PORT:9084}
       negotiation-type: plaintext
@@ -24,14 +21,14 @@ grpc:
     monitoring:
       address: static://${MONITORING_GRPC_HOST:localhost}:${MONITORING_GRPC_PORT:9088}
       negotiation-type: plaintext
-    deployment:
-      address: static://${DEPLOYMENT_GRPC_HOST:localhost}:${DEPLOYMENT_GRPC_PORT:9089}
-      negotiation-type: plaintext
     scheduler:
       address: static://${SCHEDULER_GRPC_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
       negotiation-type: plaintext
     cache:
       address: static://${CACHE_GRPC_HOST:localhost}:${CACHE_GRPC_PORT:9085}
+      negotiation-type: plaintext
+    organization:
+      address: static://${ORGANIZATION_GRPC_HOST:localhost}:${ORGANIZATION_GRPC_PORT:9090}
       negotiation-type: plaintext
 
 spring:
@@ -79,15 +76,14 @@ arceus:
       environment: ${GATEWAY_FEATURE_FLAG_ENVIRONMENT:PRODUCTION}
 
     # x-internal-token the Gateway must present when it calls
-    # monitoring-service/deployment-service/scheduler-service/feature-flag-service's
-    # gRPC API (their GrpcAuthInterceptor is global - it also guards their
-    # Forward RPC, not just their domain-specific ones) - see
-    # config.GrpcClientConfig. Each value must match that target service's
-    # own arceus.<service>.internal.api-token exactly.
+    # monitoring-service/scheduler-service/feature-flag-service's gRPC API
+    # (their GrpcAuthInterceptor is global - it also guards their Forward
+    # RPC, not just their domain-specific ones) - see config.GrpcClientConfig.
+    # Each value must match that target service's own
+    # arceus.<service>.internal.api-token exactly.
     grpc-clients:
       feature-flag-token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}
       monitoring-token: ${MONITORING_INTERNAL_API_TOKEN:changeme-monitoring-internal-token}
-      deployment-token: ${DEPLOYMENT_INTERNAL_API_TOKEN:changeme-deployment-internal-token}
       scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
 
     # Endpoints that don't require a valid access token. Matched as prefixes
@@ -106,7 +102,13 @@ arceus:
       - /api/auth/reset-password
       - /api/auth/refresh
       - /api/auth/oauth2/exchange
-      - /actuator
+      - /actuator/health
+      - /actuator/health/**
+      # monitoring-service's ServiceHealthCollector calls this unauthenticated
+      # (it has no user JWT to send) to read the Gateway's own build version -
+      # see fetchVersion(). Without this, every poll gets a 401 here and the
+      # dashboard shows "unknown" for gateway-service specifically.
+      - /actuator/info
 
     # Coarse, edge-level rate limit applied to every protected request
     # before it's forwarded to a service, on top of (not instead of) each

@@ -7,13 +7,11 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Consumes the same catch-all domain-event queue audit-service already
- * reads for its trail, and re-emits each envelope to every connected SSE
- * client via {@link SseEmitterRegistry}. This is the entire "fan-out"
- * layer: no per-service changes were needed to make any of this data live,
- * since every service already publishes onto ArceusEventsTopology's shared
- * exchange today (see each service's own RabbitMQConfig / the doc's gap
- * write-up on why this counts as new infrastructure rather than a wiring fix).
+ * Consumes the platform's catch-all domain-event queue - every service
+ * already publishes onto ArceusEventsTopology's shared exchange - and
+ * re-emits each envelope to every connected SSE client via
+ * {@link SseEmitterRegistry}. This is the entire "fan-out" layer: no
+ * per-service changes were needed to make any of this data live.
  */
 @Component
 @RequiredArgsConstructor

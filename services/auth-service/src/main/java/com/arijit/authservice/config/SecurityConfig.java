@@ -70,8 +70,12 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/actuator/health",
+            "/actuator/health/**",
+            // monitoring-service's ServiceHealthCollector calls this
+            // unauthenticated (it has no user JWT to send) to read this
+            // service's build version - see fetchVersion(). Without this,
+            // every poll gets a 401 and the dashboard shows "unknown".
             "/actuator/info",
-            "/actuator/metrics/**",
             // scheduler-service's HTTP_CALLBACK executor can't attach a JWT/API
             // key - SessionCleanupCallbackController checks its own ?token=
             // instead, same pattern as deployment-service's internal callbacks.

@@ -44,6 +44,18 @@ public final class DeploymentMessagingTopology {
      */
     public static final String HEALTH_EVENTS_QUEUE = "arceus.deployment.health-events.queue";
 
+    /**
+     * deployment-service's own subscription onto the platform-wide domain
+     * event bus, filtered to organization-service's {@code
+     * module.enable_requested}/{@code module.disable_requested} routing
+     * keys only - the "module provisioning" surface described in the
+     * architecture design's §4. Unlike {@link #HEALTH_EVENTS_QUEUE}, this
+     * one drives an actual side effect (a gRPC call to whichever service
+     * owns the requested module) rather than just updating in-memory
+     * health state - see ModuleProvisioningConsumer.
+     */
+    public static final String MODULE_PROVISIONING_QUEUE = "arceus.deployment.module-provisioning.queue";
+
     /** Direct exchange {@link #APPROVAL_DECISIONS_QUEUE} is published through. */
     public static final String INTERNAL_EXCHANGE = "arceus.deployment.internal.exchange";
 

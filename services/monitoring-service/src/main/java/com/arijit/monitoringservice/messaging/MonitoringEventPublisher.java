@@ -17,9 +17,9 @@ import java.util.Map;
  * One publish() per platform-observability transition, reusing the exact
  * same {@link EventEnvelope} shape every other Arceus publisher uses (see
  * feature-flag-service's FlagEventPublisher for the same pattern) - this is
- * what lets audit-service's existing {@code "#"} binding capture every
- * service-down/alert transition for free, with zero code changes on its
- * end. This is also the seam a future notification-dispatch service would
+ * what lets any downstream consumer bind on {@code "#"} and capture every
+ * service-down/alert transition for free, with zero code changes on this
+ * end. This is the seam a future notification-dispatch service would
  * subscribe to (Slack/PagerDuty/email) without monitoring-service itself
  * ever needing to know an external integration exists - see this module's
  * pom.xml description.

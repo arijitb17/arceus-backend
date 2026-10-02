@@ -54,24 +54,14 @@ service NotificationGatewayService {
   rpc Ping(PingRequest) returns (PingResponse);
 }
 
-service AuditGatewayService {
-  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
-  rpc Ping(PingRequest) returns (PingResponse);
-}
-
-// The following five follow the exact same shape as the three above - added
-// so the Gateway can proxy Monitoring/Deployment/Scheduler/FeatureFlag/Cache
-// the same way it already proxies Auth/Notification/Audit, instead of a
-// frontend needing to talk to those services directly (see each service's
-// XxxGatewayGrpcService for the forwarding implementation, which is
-// identical across all eight - only the service name string differs).
+// The following five follow the exact same shape as the two above - added
+// so the Gateway can proxy Monitoring/Scheduler/FeatureFlag/Cache/
+// Organization the same way it already proxies Auth/Notification, instead
+// of a frontend needing to talk to those services directly (see each
+// service's XxxGatewayGrpcService for the forwarding implementation, which
+// is identical across all six - only the service name string differs).
 
 service MonitoringGatewayService {
-  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
-  rpc Ping(PingRequest) returns (PingResponse);
-}
-
-service DeploymentGatewayService {
   rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
   rpc Ping(PingRequest) returns (PingResponse);
 }
@@ -87,6 +77,14 @@ service FeatureFlagGatewayService {
 }
 
 service CacheGatewayService {
+  rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+// organization-service - owns the developer-facing tenant hierarchy
+// (Organization/Project/Environment/ModuleEnablement/Secret/GithubConnection).
+// Same Forward/Ping shape as every service above.
+service OrganizationGatewayService {
   rpc Forward(HttpRequestMessage) returns (HttpResponseMessage);
   rpc Ping(PingRequest) returns (PingResponse);
 }
