@@ -13,27 +13,10 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * One publish() per platform-observability transition, reusing the exact
- * same {@link EventEnvelope} shape every other Arceus publisher uses (see
- * feature-flag-service's FlagEventPublisher for the same pattern) - this is
- * what lets any downstream consumer bind on {@code "#"} and capture every
- * service-down/alert transition for free, with zero code changes on this
- * end. This is the seam a future notification-dispatch service would
- * subscribe to (Slack/PagerDuty/email) without monitoring-service itself
- * ever needing to know an external integration exists - see this module's
- * pom.xml description.
- * <p>
- * Same failure posture as every other publisher in the platform: a publish
- * failure is logged and swallowed. It must never block or fail the polling
- * cycle that produced it - the persisted snapshot/alert row is the durable
- * record; this is a bonus for external subscribers.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class MonitoringEventPublisher {
-
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${spring.application.name}")

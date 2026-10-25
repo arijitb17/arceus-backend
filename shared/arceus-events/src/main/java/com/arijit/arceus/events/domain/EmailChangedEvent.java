@@ -9,7 +9,6 @@ public record EmailChangedEvent(
         String newEmail,
         Instant occurredAt
 ) implements DomainEvent {
-
     public static EmailChangedEvent now(UUID userId, String oldEmail, String newEmail) {
         return new EmailChangedEvent(userId, oldEmail, newEmail, Instant.now());
     }

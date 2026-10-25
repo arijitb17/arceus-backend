@@ -14,19 +14,8 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * This is the "dedicated fan-out layer" option the backend-gaps doc
- * flagged for live/streaming updates, rather than a WebSocket server per
- * service: the Gateway already sits in front of every client, and every
- * domain event already flows onto one shared bus (see ArceusEventsTopology)
- * that audit-service already binds a catch-all queue to for its trail - so
- * the Gateway binding its own catch-all queue and re-emitting each event as
- * an SSE message is new wiring, not new event-publishing infrastructure in
- * every downstream service.
- */
 @Configuration
 public class LiveUpdatesRabbitConfig {
-
     public static final String QUEUE = "arceus.gateway.live.events.queue";
 
     @Bean
@@ -57,10 +46,6 @@ public class LiveUpdatesRabbitConfig {
         return BindingBuilder.bind(liveUpdatesDeadLetterQueue).to(liveUpdatesDeadLetterExchange).with(QUEUE);
     }
 
-    // Catch-all, same as audit-service's binding: the Gateway doesn't know
-    // (and shouldn't need to know) which event types matter to whichever
-    // dashboard subscribes next - filtering by type is a client-side
-    // concern (see LiveUpdatesController's ?topics= param).
     @Bean
     public Binding liveUpdatesBinding(Queue liveUpdatesQueue, TopicExchange liveUpdatesEventsExchange) {
         return BindingBuilder.bind(liveUpdatesQueue)

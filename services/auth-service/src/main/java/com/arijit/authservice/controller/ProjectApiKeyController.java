@@ -19,27 +19,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * The Developer Portal's key-issuance surface (architecture design §7) -
- * distinct from ApiKeyController's pre-existing self-service platform-key
- * endpoints. Every method here authorizes against organization-service's
- * own OrgRole (OWNER/ADMIN required) via ApiKeyService, not against
- * "is this the key's owner" the way ApiKeyController's endpoints do,
- * since a project's keys are a project resource any org manager can
- * administer - not personal to whichever developer happened to click
- * "generate".
- * <p>
- * Mounted under {@code /api/auth/...} (not {@code /api/organizations/...})
- * because API keys are and remain auth-service's own resource - see the
- * architecture design's §7: "auth-service already has an ApiKey entity -
- * extended, not replaced".
- */
 @RestController
 @RequestMapping("/api/auth/organizations/{organizationId}/projects/{projectId}/api-keys")
 @RequiredArgsConstructor
 @Tag(name = "Project API Keys", description = "Project-scoped credentials generated SDKs authenticate with (architecture design §7)")
 public class ProjectApiKeyController {
-
     private final ApiKeyService apiKeyService;
 
     @RateLimited(bucket = "project-api-key-create", key = "#userDetails.username", limit = 30, windowSeconds = 3600)
@@ -54,8 +38,6 @@ public class ProjectApiKeyController {
         String rawKey = apiKeyService.createProjectKey(userDetails.getUsername(), organizationId, projectId,
                 request.environment(), request.keyType(), request.name(), request.scopes());
 
-        // Same reasoning as ApiKeyController#create for the extra lookup -
-        // create() intentionally returns only the raw key.
         var justCreated = apiKeyService.listForProject(userDetails.getUsername(), organizationId, projectId, request.environment())
                 .get(0);
 

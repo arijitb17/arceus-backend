@@ -10,22 +10,11 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * Filters run before the DispatcherServlet, so GlobalExceptionHandler never
- * sees anything they reject outright (an expired JWT, a rate-limited
- * request). This writes the exact same ApiError shape by hand so the
- * client sees one consistent error format regardless of where in the
- * pipeline the rejection happened.
- * <p>
- * WRITE_DATES_AS_TIMESTAMPS is disabled explicitly - a bare
- * `new ObjectMapper()` defaults it to true, which serializes ApiError's
- * Instant `timestamp` field as a raw epoch-seconds number (e.g.
- * "1786576690.776551100") instead of an ISO-8601 string. See
- * auth-service's JacksonConfig for the fuller explanation of this same
- * mistake elsewhere in the platform.
+ * Filters run before the DispatcherServlet, so GlobalExceptionHandler never sees anything they
+ * reject outright (an expired JWT, a rate-limited request).
  */
 @Component
 public class ErrorResponseWriter {
-
     private final ObjectMapper objectMapper = new ObjectMapper()
             .findAndRegisterModules()
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);

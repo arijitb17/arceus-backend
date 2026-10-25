@@ -10,22 +10,9 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-/**
- * Registers the recurring "notification-retry" job with scheduler-service
- * once, on startup - see NotificationRetryScheduler's Javadoc for what the
- * job does and why it lives in scheduler-service instead of an in-process
- * {@code @Scheduled} loop.
- * <p>
- * scheduler-service has no "create or update" semantics for ScheduleJob -
- * calling it twice with the same name creates two separate recurring jobs,
- * both firing forever. So this checks ListJobs for an existing
- * non-terminal job with the same name first, and only registers a new one
- * if none is found - safe to run on every restart/redeploy.
- */
 @Component
 @Slf4j
 public class RetryJobRegistrar implements ApplicationRunner {
-
     private static final String JOB_NAME = "notification-retry";
 
     private final SchedulerGrpcServiceGrpc.SchedulerGrpcServiceBlockingStub schedulerStub;

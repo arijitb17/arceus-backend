@@ -16,21 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Everything that happens once a job attempt finishes: writing its
- * {@link JobExecutionHistory} row, deciding the job's next status
- * (COMPLETED / re-SCHEDULED for the next recurrence / RETRYING / FAILED /
- * EXPIRED), writing a {@link JobDeadLetter} row on final failure, and
- * publishing the matching lifecycle event. Kept as its own bean (rather
- * than private methods on JobDispatchService) purely so its
- * {@code @Transactional} methods are called through Spring's proxy - see
- * JobDispatchService's javadoc.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class JobOutcomeService {
-
     private final JobRepository jobRepository;
     private final JobExecutionHistoryRepository historyRepository;
     private final JobDeadLetterRepository deadLetterRepository;

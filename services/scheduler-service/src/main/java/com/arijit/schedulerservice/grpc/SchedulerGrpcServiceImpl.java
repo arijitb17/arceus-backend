@@ -17,17 +17,10 @@ import org.springframework.data.domain.Sort;
 
 import java.util.UUID;
 
-/**
- * gRPC face of scheduler-service - every RPC calls straight into
- * {@link JobService}, the same engine JobController uses, so REST and
- * gRPC callers get identical validation and behavior. See scheduler.proto
- * for the wire shapes this adapts to/from.
- */
 @Slf4j
 @GrpcService
 @RequiredArgsConstructor
 public class SchedulerGrpcServiceImpl extends SchedulerGrpcServiceGrpc.SchedulerGrpcServiceImplBase {
-
     private final JobService jobService;
     private final JobProtoMapper mapper;
 

@@ -10,36 +10,12 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Two independent messaging concerns live here:
- * <ol>
- *   <li><b>Publish-only</b> to the platform-wide domain event bus
- *   ({@code arceus.events.exchange}) - {@code job.scheduled}, {@code
- *   job.started}, {@code job.completed}, {@code job.failed}, {@code
- *   job.cancelled}, {@code job.expired}. scheduler-service never consumes
- *   this exchange, only declares it (so it exists even if this is the
- *   first service up) and publishes to it - see JobLifecycleEventPublisher.</li>
- *   <li><b>Consume</b> from two queues scheduler-service owns entirely:
- *   {@code RETRY_REQUEST_QUEUE} (see RetryRequestConsumer) and {@code
- *   DELAY_READY_QUEUE} (see DelayReadyConsumer), fed by the {@code
- *   DELAY_QUEUE} dead-letter pattern described on
- *   SchedulerMessagingTopology.</li>
- * </ol>
- * Every queue here dead-letters into its own scheme's DLX after
- * spring.rabbitmq.listener.simple.retry's attempts are exhausted (see
- * application.yml), same pattern as every other service in the platform.
- */
 @Configuration
 public class RabbitMQConfig {
-
-    // ---------- Platform domain event bus (publish-only) ----------
-
     @Bean
     public TopicExchange eventsExchange() {
         return new TopicExchange(ArceusEventsTopology.EVENTS_EXCHANGE);
     }
-
-    // ---------- scheduler-service's own internal exchange + DLX ----------
 
     @Bean
     public DirectExchange schedulerInternalExchange() {
@@ -50,8 +26,6 @@ public class RabbitMQConfig {
     public DirectExchange schedulerDeadLetterExchange() {
         return new DirectExchange(SchedulerMessagingTopology.DEAD_LETTER_EXCHANGE);
     }
-
-    // ---------- Retry-request queue ----------
 
     @Bean
     public Queue retryRequestQueue() {
@@ -78,16 +52,8 @@ public class RabbitMQConfig {
                 .with(SchedulerMessagingTopology.RETRY_REQUEST_QUEUE);
     }
 
-    // ---------- Delay queue (TTL-per-message) -> dead-letters into delay-ready queue ----------
-
     @Bean
     public Queue delayQueue() {
-        // No consumer ever binds to this queue directly - every message
-        // published here carries its own per-message expiration (the
-        // job's delay, in millis - see DelayNudgePublisher) and, once that
-        // TTL elapses, RabbitMQ dead-letters it straight into
-        // DELAY_READY_QUEUE below. That's the entire mechanism: a
-        // per-job, per-message delay without a scheduled-message plugin.
         return QueueBuilder.durable(SchedulerMessagingTopology.DELAY_QUEUE)
                 .withArgument("x-dead-letter-exchange", SchedulerMessagingTopology.INTERNAL_EXCHANGE)
                 .withArgument("x-dead-letter-routing-key", SchedulerMessagingTopology.DELAY_READY_QUEUE)

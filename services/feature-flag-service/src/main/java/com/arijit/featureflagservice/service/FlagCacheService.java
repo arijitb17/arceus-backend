@@ -13,31 +13,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Caches a flag's serialized state (see FlagService's cache payload
- * format) keyed by key+environment, so EvaluateFlag - the RPC every
- * platform service calls on hot paths - doesn't hit Postgres on every
- * evaluation.
- * <p>
- * Goes through cache-service's gRPC API (the "featureflag" namespace)
- * rather than talking to Redis directly, per the platform-wide "every
- * service uses Cache Service instead of directly accessing Redis" goal -
- * cache.proto's own Javadoc names this exact use case. This does add one
- * extra network hop versus a direct Redis call (feature-flag-service ->
- * cache-service -> Redis instead of feature-flag-service -> Redis), which
- * matters here specifically because EvaluateFlag now sits on other
- * services' hot paths too (Gateway's per-route check, Auth's registration
- * gate, ...) - acceptable because it's still a single in-cluster gRPC
- * call, and entirely best-effort: any cache-service failure (down,
- * timeout, ...) is logged once at WARN and treated as a cache miss, never
- * propagated to the caller - a flag being unreadable from cache must
- * never make evaluation fail, only slightly slower. See HealthService for
- * how Redis's own status is surfaced separately via GET /health.
+ * This does add one extra network hop versus a direct Redis call (feature-flag-service -> cache-
+ * service -> Redis instead of feature-flag-service -> Redis), which matters here specifically
+ * because EvaluateFlag now sits on other services' hot paths too (Gateway's per-route check, Auth's
+ * registration gate, ...) - acceptable because it's still a single in-cluster gRPC call, and
+ * entirely best-effort: any cache-service failure (down, timeout, ...) is logged once at WARN and
+ * treated as a cache miss, never propagated to the caller - a flag being unreadable from cache must
+ * never make evaluation fail, only slightly slower.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FlagCacheService {
-
     private static final String NAMESPACE = "featureflag";
 
     private final CacheGrpcServiceGrpc.CacheGrpcServiceBlockingStub cacheStub;

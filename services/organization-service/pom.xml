@@ -38,17 +38,11 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
-        <!-- gRPC server: exposes OrganizationGatewayService so the Arceus
-             Gateway can forward requests here without a REST hop over the
-             network, same pattern as every other service. -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-server-spring-boot-starter</artifactId>
             <version>${grpc-spring.version}</version>
         </dependency>
-        <!-- gRPC client: calls auth-service's ApiKeyProvisioningGrpcService
-             to mint a project's PUBLIC API key on demand when generating
-             SDK config (architecture design §9) - see SdkConfigService. -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-client-spring-boot-starter</artifactId>
@@ -92,7 +86,6 @@
             <version>${springdoc.version}</version>
         </dependency>
 
-        <!-- Reads the same root .env as every other service -->
         <dependency>
             <groupId>me.paulschwarz</groupId>
             <artifactId>springboot3-dotenv</artifactId>

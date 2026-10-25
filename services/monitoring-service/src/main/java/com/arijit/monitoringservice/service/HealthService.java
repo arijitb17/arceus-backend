@@ -9,16 +9,10 @@ import org.springframework.stereotype.Service;
 import javax.sql.DataSource;
 import java.sql.Connection;
 
-/**
- * monitoring-service's own health (not to be confused with the platform
- * health it collects about everyone else) - GET /health, same "check my
- * own dependencies" convention every other Arceus service follows.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class HealthService {
-
     private final DataSource dataSource;
     private final ConnectionFactory rabbitConnectionFactory;
     private final RedisConnectionFactory redisConnectionFactory;

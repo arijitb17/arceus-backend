@@ -17,25 +17,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * The Developer Portal-facing half of the module-provisioning workflow
- * (architecture design §4). Enabling or disabling a module calls straight
- * through to {@link ModuleProvisioningClient} - the one service that
- * ModuleType maps to - and resolves the row to its terminal state
- * (ACTIVE/FAILED or DISABLED/ACTIVE) in the same request, instead of
- * leaving it at PENDING waiting on a deployment-service event pipeline
- * that isn't part of this platform. See ModuleProvisioningClient's javadoc
- * for why a direct synchronous call replaced that pipeline, and
- * OrganizationEventPublisher for why moduleEnableRequested/
- * moduleDisableRequested are still published even though nothing
- * currently consumes them - they're a durable audit trail of the request
- * itself, independent of how it eventually got fulfilled.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ModuleEnablementService {
-
     private final ModuleEnablementRepository repository;
     private final OrgAccessGuard accessGuard;
     private final ProjectService projectService;
@@ -75,7 +60,6 @@ public class ModuleEnablementService {
                     .updatedAt(now)
                     .build();
         } else {
-            // Re-enabling after a FAILED or DISABLED state - same row, fresh request.
             enablement.setStatus(ModuleStatus.PROVISIONING);
             enablement.setRequestedBy(callerUserId);
             enablement.setLastError(null);
@@ -119,9 +103,8 @@ public class ModuleEnablementService {
             log.info("Deprovisioned {} for project={} environment={}", module, projectId, environment);
             return markDisabled(projectId, environment, module);
         } catch (Exception ex) {
-            // Deprovisioning failed - leave it ACTIVE rather than silently
-            // dropping the module into an ambiguous DISABLING-forever state;
-            // the caller can see the error and retry.
+            // Deprovisioning failed - leave it ACTIVE rather than silently dropping the module into
+            // an ambiguous DISABLING-forever state; the caller can see the error and retry.
             log.warn("Failed to deprovision {} for project={} environment={}: {}",
                     module, projectId, environment, ex.getMessage());
             enablement.setStatus(ModuleStatus.ACTIVE);
@@ -131,8 +114,6 @@ public class ModuleEnablementService {
             throw new ApiException("Failed to disable " + module + ": " + ex.getMessage(), HttpStatus.BAD_GATEWAY);
         }
     }
-
-    // ---------- Terminal-state transitions ----------
 
     private ModuleEnablement markActive(UUID projectId, EnvironmentType environment, ModuleType module) {
         return transition(projectId, environment, module, enablement -> {

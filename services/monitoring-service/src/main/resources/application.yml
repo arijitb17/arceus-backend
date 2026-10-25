@@ -5,7 +5,6 @@ grpc:
   server:
     port: ${MONITORING_GRPC_PORT:9088}
   client:
-    # Used to authorize the project-scoped usage endpoint - see GrpcClientConfig.
     organization:
       address: static://${ORGANIZATION_GRPC_HOST:localhost}:${ORGANIZATION_GRPC_PORT:9090}
       negotiation-type: plaintext
@@ -13,9 +12,6 @@ grpc:
 spring:
   autoconfigure:
     exclude:
-      # Spring Security here is for the REST layer only, not gRPC - gRPC
-      # auth is handled by GrpcAuthInterceptor instead (see
-      # feature-flag-service's application.yml for the same exclusion and why).
       - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
 
   application:
@@ -29,7 +25,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # fine for pre-release dev; move to Flyway + validate before v1.0.0
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -65,9 +61,6 @@ management:
   endpoints:
     web:
       exposure:
-        # monitoring-service is the one service that also exposes
-        # /actuator/prometheus today, so Prometheus can scrape it alongside
-        # every service it monitors (see this module's pom.xml).
         include: health,info,metrics,prometheus
   endpoint:
     health:
@@ -76,26 +69,16 @@ management:
     tags:
       application: ${spring.application.name}
 
-# --- Arceus Monitoring Service specific configuration --------------------
 arceus:
   monitoring:
     internal:
-      # Shared secret every internal caller (REST or gRPC) must present -
-      # see InternalTokenAuthFilter / GrpcAuthInterceptor.
       api-token: ${MONITORING_INTERNAL_API_TOKEN:changeme-monitoring-internal-token}
 
     polling:
-      # How often ServicePollingService sweeps every target below.
       interval-ms: ${MONITORING_POLLING_INTERVAL_MS:15000}
-      # Per-request connect/read timeout applied to every Actuator call -
-      # must stay well under interval-ms so one hung service can never
-      # stall the whole cycle (see RestClientConfig).
       http-timeout-ms: ${MONITORING_POLLING_TIMEOUT_MS:2000}
 
     thresholds:
-      # Starting values for the built-in alert rules DefaultAlertRuleSeeder
-      # creates on first startup - every rule remains editable afterwards
-      # via PUT /alerts/{id}, these are just sane defaults.
       cpu-percent: ${MONITORING_THRESHOLD_CPU_PERCENT:80}
       memory-percent: ${MONITORING_THRESHOLD_MEMORY_PERCENT:85}
       error-rate-percent: ${MONITORING_THRESHOLD_ERROR_RATE_PERCENT:5}
@@ -105,12 +88,6 @@ arceus:
       retention-days: ${MONITORING_HISTORY_RETENTION_DAYS:30}
       cleanup-cron: ${MONITORING_HISTORY_CLEANUP_CRON:0 30 3 * * *}
 
-    # One entry per monitored service - add a new one here (and to the
-    # `targets:` block of every deployment's env) the day a new Arceus
-    # service joins the platform; nothing else in this service needs to
-    # change. base-url is polled for /actuator/health and
-    # /actuator/metrics/*; grpc-host/grpc-port back the TCP-level gRPC
-    # connectivity check (see ServiceHealthCollector).
     targets:
       gateway-service:
         base-url: ${GATEWAY_BASE_URL:http://localhost:8090}
@@ -140,10 +117,6 @@ arceus:
         base-url: ${FEATURE_FLAG_BASE_URL:http://localhost:8087}
         grpc-host: ${FEATURE_FLAG_GRPC_HOST:localhost}
         grpc-port: ${FEATURE_FLAG_GRPC_PORT:9087}
-      # organization-service doesn't poll itself, so 9 targets (of the 10
-      # services in this platform - gateway/auth/notification/ratelimit/
-      # cache/scheduler/feature-flag/organization, plus monitoring itself)
-      # is the full expected count.
       organization-service:
         base-url: ${ORGANIZATION_BASE_URL:http://localhost:8091}
         grpc-host: ${ORGANIZATION_GRPC_HOST:localhost}
@@ -151,10 +124,6 @@ arceus:
 
 logging:
   pattern:
-    # Every Arceus service logs with this same correlation-id pattern so
-    # log lines from different services can be stitched together by
-    # correlationId when tracing a single request across the platform -
-    # see CorrelationIdFilter for where that MDC value gets set.
     level: "%5p [correlationId=%X{correlationId:-}]"
   level:
     com.arijit.monitoringservice: ${LOG_LEVEL_MONITORING_SERVICE:INFO}

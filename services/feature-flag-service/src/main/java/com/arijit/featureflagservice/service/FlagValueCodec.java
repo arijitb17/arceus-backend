@@ -8,23 +8,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-/**
- * The single place that knows how to move a value between "the
- * caller-facing JSON shape" (a plain {@code Object} - Boolean, Long,
- * Double, String, or an arbitrary JSON tree for the JSON type) and "which
- * typed column on {@link FeatureFlag} holds it". Every other class
- * (FlagService, FeatureFlagGrpcServiceImpl, FlagResponse) goes through
- * this rather than touching valueBoolean/valueLong/valueDouble/
- * valueString/valueJson directly, so adding a new FlagType only ever
- * requires a change here.
- */
 @Component
 @RequiredArgsConstructor
 public class FlagValueCodec {
-
     private final ObjectMapper objectMapper;
 
-    /** Validates {@code rawValue} matches {@code type} and writes it onto the correct column on {@code flag}. */
     public void write(FeatureFlag flag, FlagType type, Object rawValue) {
         flag.setValueBoolean(null);
         flag.setValueLong(null);
@@ -42,7 +30,6 @@ public class FlagValueCodec {
         }
     }
 
-    /** Reads the effective value back out as a plain JSON-friendly Object, for FlagResponse/EvaluationResult/gRPC. */
     public Object read(FeatureFlag flag) {
         return switch (flag.getType()) {
             case BOOLEAN -> flag.getValueBoolean();
@@ -54,7 +41,6 @@ public class FlagValueCodec {
         };
     }
 
-    /** JSON-encodes the effective value - what goes over the wire in the gRPC {@code value} field. */
     public String toJsonString(FeatureFlag flag) {
         if (flag.getType() == FlagType.JSON) {
             return flag.getValueJson();

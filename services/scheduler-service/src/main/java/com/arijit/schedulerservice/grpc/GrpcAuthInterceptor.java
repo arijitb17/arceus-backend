@@ -6,19 +6,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.interceptor.GrpcGlobalServerInterceptor;
 
-/**
- * gRPC-side equivalent of InternalTokenAuthFilter - every RPC must carry
- * the same {@code x-internal-token} metadata key the REST API expects as
- * {@code X-Internal-Token}, checked against the same
- * {@code arceus.scheduler.internal.api-token} configuration. {@code Ping}
- * (used for liveness checks by callers that don't have the token yet, e.g.
- * during their own startup probes) is deliberately exempt.
- */
 @GrpcGlobalServerInterceptor
 @RequiredArgsConstructor
 @Slf4j
 public class GrpcAuthInterceptor implements ServerInterceptor {
-
     static final Metadata.Key<String> TOKEN_HEADER =
             Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER);
 
@@ -27,7 +18,6 @@ public class GrpcAuthInterceptor implements ServerInterceptor {
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
             ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
-
         if (call.getMethodDescriptor().getFullMethodName().endsWith("/Ping")) {
             return next.startCall(call, headers);
         }

@@ -13,44 +13,21 @@ import com.arijit.organizationservice.entity.EnvironmentType;
 import com.arijit.organizationservice.entity.ModuleType;
 import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/**
- * Calls the one service each {@link ModuleType} maps to - see that enum's
- * javadoc - to actually provision or deprovision a tenant-scoped resource
- * for a project.
- * <p>
- * This is what used to be deployment-service's job: it consumed
- * organization-service's {@code module.enable_requested}/
- * {@code module.disable_requested} events and called exactly one of these
- * same five RPCs, then published a result event back for
- * organization-service to consume asynchronously (see the removed
- * {@code ModuleProvisioningResultConsumer} and
- * {@code module-provisioning-results} queue). With deployment-service gone,
- * calling the target RPC directly and synchronously from
- * {@link ModuleEnablementService} is simpler and just as correct - all five
- * implementations already return promptly (several are honest no-ops
- * pending tenant-scoped work in their own service, per their own javadoc),
- * so there was no real orchestration value left in keeping this async.
- */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ModuleProvisioningClient {
-
     private final AuthTenantProvisioningServiceGrpc.AuthTenantProvisioningServiceBlockingStub authStub;
     private final NotificationTenantProvisioningServiceGrpc.NotificationTenantProvisioningServiceBlockingStub notificationStub;
     private final CacheTenantProvisioningServiceGrpc.CacheTenantProvisioningServiceBlockingStub cacheStub;
     private final SchedulerTenantProvisioningServiceGrpc.SchedulerTenantProvisioningServiceBlockingStub schedulerStub;
     private final FeatureFlagTenantProvisioningServiceGrpc.FeatureFlagTenantProvisioningServiceBlockingStub featureFlagStub;
 
-    /**
-     * @return the target service's resource_reference (often empty - see
-     *         ProvisionTenantResponse's javadoc in tenant-provisioning.proto).
-     * @throws IllegalStateException if the gRPC call fails outright or the
-     *         target service reports success=false.
-     */
     public String provision(ModuleType module, UUID projectId, EnvironmentType environment, String requestedBy) {
         ProvisionTenantRequest request = ProvisionTenantRequest.newBuilder()
                 .setProjectId(projectId.toString())
@@ -68,16 +45,18 @@ public class ModuleProvisioningClient {
             };
 
             if (!response.getSuccess()) {
+                log.warn("Provisioning {} reported failure: project={} env={} message={}", module, projectId, environment, response.getMessage());
                 throw new IllegalStateException(response.getMessage());
             }
+            log.info("Provisioned {}: project={} env={} resource={}", module, projectId, environment, response.getResourceReference());
             return response.getResourceReference();
         } catch (StatusRuntimeException ex) {
+            log.error("gRPC provision call failed: module={} project={} env={} status={}", module, projectId, environment, ex.getStatus(), ex);
             throw new IllegalStateException(
                     "gRPC call to provision " + module + " failed: " + ex.getStatus().getCode(), ex);
         }
     }
 
-    /** @throws IllegalStateException on the same terms as {@link #provision}. */
     public void deprovision(ModuleType module, UUID projectId, EnvironmentType environment, String requestedBy) {
         DeprovisionTenantRequest request = DeprovisionTenantRequest.newBuilder()
                 .setProjectId(projectId.toString())
@@ -95,9 +74,12 @@ public class ModuleProvisioningClient {
             };
 
             if (!response.getSuccess()) {
+                log.warn("Deprovisioning {} reported failure: project={} env={} message={}", module, projectId, environment, response.getMessage());
                 throw new IllegalStateException(response.getMessage());
             }
+            log.info("Deprovisioned {}: project={} env={}", module, projectId, environment);
         } catch (StatusRuntimeException ex) {
+            log.error("gRPC deprovision call failed: module={} project={} env={} status={}", module, projectId, environment, ex.getStatus(), ex);
             throw new IllegalStateException(
                     "gRPC call to deprovision " + module + " failed: " + ex.getStatus().getCode(), ex);
         }

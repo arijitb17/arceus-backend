@@ -10,19 +10,6 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * One row per (project, environment, module) - the source of truth for
- * "is this module on for this project", per the architecture design's §4
- * module-provisioning workflow.
- * <p>
- * {@code status} moves through PROVISIONING/DISABLING to its terminal
- * ACTIVE/FAILED/DISABLED state within a single request:
- * {@code ModuleEnablementService.enable()}/{@code disable()} call the
- * target module's own service directly via {@code ModuleProvisioningClient}
- * and resolve the row before returning, rather than parking it at PENDING
- * to wait on an async result event from a separate orchestrator - see
- * ModuleProvisioningClient's javadoc for why.
- */
 @Entity
 @Table(name = "module_enablements", uniqueConstraints = {
         @UniqueConstraint(name = "uq_module_enablement", columnNames = {"projectId", "environment", "module"})
@@ -35,7 +22,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ModuleEnablement {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

@@ -12,16 +12,12 @@ import java.time.Instant;
 
 /**
  * Converts between the JPA {@link FeatureFlag} entity and {@code
- * com.arijit.arceus.grpc.featureflag.Flag} (the wire message -
- * fully-qualified throughout since its simple name collides with the
- * entity). Value always crosses the wire JSON-encoded via
- * {@link FlagValueCodec#toJsonString(FeatureFlag)} regardless of type -
- * see featureflag.proto's comment on why.
+ * com.arijit.arceus.grpc.featureflag.Flag} (the wire message - fully-qualified throughout since its
+ * simple name collides with the entity).
  */
 @Component
 @RequiredArgsConstructor
 public class FlagProtoMapper {
-
     private final FlagValueCodec valueCodec;
 
     public com.arijit.arceus.grpc.featureflag.Flag toProto(FeatureFlag flag) {

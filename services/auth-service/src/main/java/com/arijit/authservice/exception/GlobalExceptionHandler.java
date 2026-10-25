@@ -11,26 +11,19 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-// @RestControllerAdvice = "this class handles exceptions thrown by ANY
-// @RestController in the app". Without this, an unhandled exception would
-// return Spring's default ugly whitelabel error page instead of clean JSON.
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String, Object>> handleApiException(ApiException ex) {
         return ResponseEntity.status(ex.getStatus()).body(errorBody(ex.getStatus(), ex.getMessage()));
     }
 
-    // Thrown by the shared @RateLimited aspect (arceus-ratelimit) whenever a
-    // caller exceeds one of the rules on AuthController. Retry-After tells
-    // well-behaved clients exactly how long to back off instead of guessing.
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<Map<String, Object>> handleRateLimitExceeded(RateLimitExceededException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
@@ -43,7 +36,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(errorBody(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
     }
-
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingParam(MissingServletRequestParameterException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(errorBody(HttpStatus.BAD_REQUEST, "Missing required parameter: " + ex.getParameterName()));
+    }
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<Map<String, Object>> handleDisabled(DisabledException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -56,17 +53,12 @@ public class GlobalExceptionHandler {
                 .body(errorBody(HttpStatus.FORBIDDEN, "This account has been disabled by an administrator"));
     }
 
-    // Without this, a non-admin hitting an @PreAuthorize("hasRole('ADMIN')")
-    // endpoint (e.g. UserManagementController) would fall through to the
-    // generic Exception handler below and come back as a misleading 500.
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(errorBody(HttpStatus.FORBIDDEN, "You don't have permission to do that"));
     }
 
-    // Fires automatically when a @Valid @RequestBody DTO fails its
-    // @NotBlank/@Email/@Size checks - turns that into a field-by-field error map.
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> fieldErrors = new HashMap<>();
@@ -79,9 +71,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
-        // This is the catch-all - if we're here, something unexpected happened.
-        // The client only ever sees "Something went wrong"; THIS log line is
-        // the only place the real cause is visible.
         log.error("Unhandled exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(errorBody(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong"));

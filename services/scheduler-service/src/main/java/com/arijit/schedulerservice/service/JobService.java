@@ -26,20 +26,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Everything a caller (REST controller or gRPC service impl - both are
- * thin adapters over this class, so REST/gRPC callers get identical
- * behavior) can do to a job outside of the poll loop itself: create, read,
- * update, cancel, pause, resume, and force-retry. JobPollerService and
- * JobDispatchService own the poll-driven state transitions (SCHEDULED ->
- * RUNNING -> COMPLETED/FAILED/RETRYING); this class owns everything a
- * human or another service explicitly asks for.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class JobService {
-
     private final JobRepository jobRepository;
     private final JobDeadLetterRepository deadLetterRepository;
     private final JobValidationService validationService;
@@ -110,12 +100,6 @@ public class JobService {
         return jobRepository.findAll(pageable);
     }
 
-    /**
-     * Only the fields that don't change what/when a job fundamentally is
-     * (see UpdateJobRequest's javadoc). Disallowed while RUNNING - a job
-     * shouldn't have its retry/backoff policy rewritten out from under an
-     * attempt currently in flight.
-     */
     @Transactional
     public Job update(UUID id, UpdateJobRequest request) {
         Job job = getOrThrow(id);
@@ -166,10 +150,6 @@ public class JobService {
         if (job.getStatus() != JobStatus.PAUSED) {
             throw new ApiException("Job " + id + " is not PAUSED (currently " + job.getStatus() + ")", HttpStatus.CONFLICT);
         }
-        // A job paused for a long time shouldn't immediately fire a
-        // backlog of missed fixed-rate ticks on resume - re-anchor to the
-        // trigger's natural next occurrence from now instead of whatever
-        // stale nextFireAt it had when paused.
         job.setStatus(JobStatus.SCHEDULED);
         job.setNextFireAt(triggerCalculator.firstFireAt(job));
         job.setUpdatedAt(Instant.now());
@@ -179,15 +159,6 @@ public class JobService {
         return job;
     }
 
-    /**
-     * The caller-facing entry point for POST /jobs/{id}/retry and the
-     * RetryJob RPC: validates eligibility, then publishes a
-     * {@code RetryRequestMessage} rather than mutating the job directly -
-     * RetryRequestConsumer (or any other service that publishes the same
-     * message) is what actually calls {@link #forceRetryNow} once it's
-     * consumed. Returns the job in its still-FAILED state; the caller
-     * should poll GET /jobs/{id} to observe the transition to SCHEDULED.
-     */
     @Transactional(readOnly = true)
     public Job requestRetry(UUID id) {
         Job job = getOrThrow(id);
@@ -199,14 +170,6 @@ public class JobService {
         return job;
     }
 
-    /**
-     * Immediate, synchronous retry request from a REST/gRPC caller who
-     * wants the job requeued right now - resets nextFireAt to now without
-     * waiting for the backoff delay, but does NOT reset retryCount (a
-     * forced retry still counts as an attempt toward maxRetries).
-     * RetryRequestConsumer calls this for messages arriving over
-     * RabbitMQ, so both entry points behave identically.
-     */
     @Transactional
     public Job forceRetryNow(UUID id) {
         Job job = getOrThrow(id);

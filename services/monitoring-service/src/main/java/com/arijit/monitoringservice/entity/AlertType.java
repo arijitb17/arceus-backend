@@ -1,6 +1,5 @@
 package com.arijit.monitoringservice.entity;
 
-/** Supported alert rule conditions - matches the spec's "Alert Rules -> Support" list exactly. */
 public enum AlertType {
     SERVICE_DOWN,
     HIGH_CPU,

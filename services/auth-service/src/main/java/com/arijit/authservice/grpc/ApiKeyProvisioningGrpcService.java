@@ -19,19 +19,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * See apikey-provisioning.proto's javadoc: this is what lets
- * organization-service's SDK config generation (architecture design §9)
- * get a usable PUBLIC key without this service exposing any key material
- * through a REST endpoint another service could call directly - a gRPC
- * contract is a much narrower surface than "call our REST API as if you
- * were a browser".
- */
 @GrpcService
 @RequiredArgsConstructor
 @Slf4j
 public class ApiKeyProvisioningGrpcService extends ApiKeyProvisioningGrpcServiceGrpc.ApiKeyProvisioningGrpcServiceImplBase {
-
     private final ApiKeyService apiKeyService;
 
     @Override

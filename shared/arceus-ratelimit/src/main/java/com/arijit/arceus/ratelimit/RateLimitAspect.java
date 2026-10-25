@@ -1,6 +1,7 @@
 package com.arijit.arceus.ratelimit;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -16,18 +17,11 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.Method;
 import java.time.Duration;
 
-/**
- * Wraps any method carrying one or more @RateLimited annotations. For each
- * annotation present, resolves its key and asks the RateLimiter if this call
- * is within budget - the first exceeded rule wins and short-circuits the
- * method (so e.g. a login attempt gets blocked by whichever of the per-IP or
- * per-email rule trips first, without needlessly checking the DB first).
- */
+@Slf4j
 @Aspect
 @Component
 @RequiredArgsConstructor
 public class RateLimitAspect {
-
     private final RateLimiter rateLimiter;
 
     private final ExpressionParser parser = new SpelExpressionParser();
@@ -47,6 +41,8 @@ public class RateLimitAspect {
             );
 
             if (!result.allowed()) {
+                log.warn("Rate limit exceeded: bucket={} method={} retryAfterSeconds={}",
+                        rule.bucket(), method.getName(), result.retryAfterSeconds());
                 throw new RateLimitExceededException(
                         "Too many requests for '%s' - try again in %ds".formatted(rule.bucket(), result.retryAfterSeconds()),
                         result.retryAfterSeconds()

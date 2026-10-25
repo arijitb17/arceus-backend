@@ -17,38 +17,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Authenticates requests carrying an {@code X-API-Key} header - the
- * missing piece from the architecture design's §7 that makes a generated
- * SDK (§9) actually usable: until this filter existed, a project's PUBLIC/
- * SECRET key only worked against auth-service's own endpoints (see
- * auth-service's own ApiKeyAuthFilter), because nothing at the Gateway
- * knew how to authenticate one - every other route required a JWT.
- * <p>
- * Runs immediately before {@link JwtAuthFilter} (see FilterConfig's
- * ordering) and takes over entirely when the header is present: an
- * invalid API key fails the request outright rather than falling through
- * to the JWT check, since a caller presenting a key clearly isn't a
- * browser session and a fallback would just turn a clear 401 into a
- * confusing one. No key at all - the common case, browser traffic from
- * either Portal - passes straight through to JwtAuthFilter unchanged.
- * <p>
- * On success, stamps the same {@link JwtAuthFilter#USER_EMAIL_ATTRIBUTE}/
- * {@link JwtAuthFilter#USER_ROLES_ATTRIBUTE} attributes a JWT would (so
- * every downstream service's existing RoleHeaderAuthFilter needs zero
- * changes to accept either), plus the resolved project scope as separate
- * attributes HttpMessageMapper forwards as {@code X-Tenant-*} headers -
- * the beginning of the TenantContext propagation described in the
- * architecture design's §3, not the whole of it: today those headers are
- * forwarded but only auth-service's own filter reads project scope back
- * out of them (via its own request attributes) - no other service enforces
- * anything based on them yet. That per-service enforcement is separate,
- * larger work (§3's "every service's project-scoped entities get a
- * projectId column and a query filter") and is not implemented here.
+ * Runs immediately before {@link JwtAuthFilter} (see FilterConfig's ordering) and takes over
+ * entirely when the header is present: an invalid API key fails the request outright rather than
+ * falling through to the JWT check, since a caller presenting a key clearly isn't a browser session
+ * and a fallback would just turn a clear 401 into a confusing one.
  */
 @RequiredArgsConstructor
 @Slf4j
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
-
     public static final String HEADER_NAME = "X-API-Key";
 
     public static final String TENANT_ORGANIZATION_ID_ATTRIBUTE = "tenantOrganizationId";
@@ -63,7 +39,6 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-
         String rawKey = request.getHeader(HEADER_NAME);
         if (rawKey == null || rawKey.isBlank()) {
             chain.doFilter(request, response);

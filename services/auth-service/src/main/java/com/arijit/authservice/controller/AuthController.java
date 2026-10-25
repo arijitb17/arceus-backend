@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Registration, verification, login, and account management")
 public class AuthController {
-
     private final AuthService authService;
     private final UserRepository userRepository;
 

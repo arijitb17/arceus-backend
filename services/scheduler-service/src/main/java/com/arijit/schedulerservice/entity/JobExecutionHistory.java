@@ -9,13 +9,6 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * One row per execution attempt of a job - what {@code Job} itself can't
- * tell you, since it only ever reflects the *current* attempt. A daily
- * cron job running for a month produces roughly 30 rows here off a single
- * {@code Job} row. Rows are never updated after being written (append-only,
- * like AuditLog) - this is the system of record for "job history".
- */
 @Entity
 @Table(name = "job_execution_history", indexes = {
         @Index(name = "idx_history_job_id", columnList = "jobId"),
@@ -26,7 +19,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JobExecutionHistory {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -40,7 +32,6 @@ public class JobExecutionHistory {
     @Column(nullable = false, length = 100, updatable = false)
     private String serviceName;
 
-    /** Which retry attempt this was - 1 for the first try, 2 for the first retry, etc. */
     @Column(nullable = false, updatable = false)
     private int attemptNumber;
 

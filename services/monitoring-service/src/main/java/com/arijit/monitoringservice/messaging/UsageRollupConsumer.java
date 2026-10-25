@@ -12,18 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/**
- * See RabbitMQConfig's javadoc and UsageRollup's javadoc for why this
- * aggregates rather than inserting a row per event. A malformed event
- * (missing/unparseable projectId) is logged and dropped, not retried -
- * same posture as every other consumer in this platform: redelivery can't
- * fix a payload that was never going to parse.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class UsageRollupConsumer {
-
     private final UsageRollupRepository repository;
 
     @RabbitListener(queues = "arceus.monitoring.usage-rollup.queue")

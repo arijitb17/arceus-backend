@@ -8,12 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** GET /dashboard - the Health Dashboard, one call with everything the spec asks it to display. */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Dashboard", description = "Platform Dashboard API")
 public class DashboardController {
-
     private final DashboardService dashboardService;
 
     @GetMapping("/dashboard")

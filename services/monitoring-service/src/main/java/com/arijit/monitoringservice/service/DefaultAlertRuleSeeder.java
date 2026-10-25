@@ -13,20 +13,10 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 
-/**
- * On first startup only (guarded by {@code alertRuleRepository.count() == 0},
- * so this never overwrites rules an admin has since edited/deleted), seeds
- * one enabled, platform-wide rule per {@link AlertType} - covering the
- * spec's full "Alert Rules -> Support" list out of the box. Every seeded
- * rule remains fully editable/deletable afterwards through the normal
- * POST/PUT/DELETE /alerts REST API; this is a starting point, not a fixed
- * configuration.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class DefaultAlertRuleSeeder implements ApplicationRunner {
-
     private static final String SEEDED_BY = "system";
 
     private final AlertRuleRepository alertRuleRepository;

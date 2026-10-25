@@ -18,17 +18,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Read-side for {@code GET /services} (Platform Dashboard's per-service
- * list) and {@code GET /services/{service}} (Service Status History). Reads
- * the latest state from {@link LatestStateCache} rather than querying the
- * database on every request - the cache is refreshed by
- * ServicePollingService at most every {@code arceus.monitoring.polling.interval-ms}.
- */
 @Service
 @RequiredArgsConstructor
 public class PlatformHealthService {
-
     private final LatestStateCache latestStateCache;
     private final ServiceHealthSnapshotRepository healthRepository;
     private final MonitoringProperties properties;

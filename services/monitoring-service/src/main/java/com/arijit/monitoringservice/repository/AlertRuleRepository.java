@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AlertRuleRepository extends JpaRepository<AlertRule, UUID> {
-
     List<AlertRule> findByEnabledTrue();
 
     Page<AlertRule> findAll(Pageable pageable);

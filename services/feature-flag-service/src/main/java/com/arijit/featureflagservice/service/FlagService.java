@@ -23,24 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 /**
- * Everything a caller (REST controller, gRPC service impl, or the
- * internal scheduler-callback controller - all thin adapters over this
- * class, so every entry point gets identical validation and behavior)
- * can do to a flag: create, read, update, delete, enable, disable,
- * evaluate. Every state-changing method here, in the same transaction:
- * (1) validates, (2) mutates and saves the row, (3) records a
- * {@link FlagVersion} snapshot, (4) records a local audit entry, (5)
- * evicts the cache entry, then, outside the transaction's critical path
- * but still synchronously, (6) publishes a domain event. Scheduling
- * side-effects (registering/cancelling scheduler-service jobs) happen
- * last since they're the most likely to fail transiently and must never
- * block the flag mutation itself.
+ * Scheduling side-effects (registering/cancelling scheduler-service jobs) happen last since they're
+ * the most likely to fail transiently and must never block the flag mutation itself.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FlagService {
-
     private final FeatureFlagRepository flagRepository;
     private final FlagValidationService validationService;
     private final FlagValueCodec valueCodec;
@@ -206,10 +195,9 @@ public class FlagService {
     }
 
     /**
-     * Called both from FlagScheduleCallbackController (scheduler-service's
-     * HTTP_CALLBACK firing) and, redundantly but safely, could be called
-     * by a future safety-net sweep - idempotent either way since setStatus
-     * short-circuits when the flag is already in the target state.
+     * Called both from FlagScheduleCallbackController (scheduler-service's HTTP_CALLBACK firing)
+     * and, redundantly but safely, could be called by a future safety-net sweep - idempotent either
+     * way since setStatus short-circuits when the flag is already in the target state.
      */
     @Transactional
     public FeatureFlag applyScheduledActivation(String key, Environment environment) {
@@ -226,11 +214,9 @@ public class FlagService {
     }
 
     /**
-     * Resolves a flag's effective value for a caller: not found -> the
-     * caller's default; DISABLED -> the caller's default; ENABLED but
-     * outside the rollout bucket -> the caller's default; otherwise the
-     * flag's stored value. Reads through {@link FlagCacheService} first -
-     * a cache hit skips the database entirely.
+     * Resolves a flag's effective value for a caller: not found -> the caller's default; DISABLED
+     * -> the caller's default; ENABLED but outside the rollout bucket -> the caller's default;
+     * otherwise the flag's stored value.
      */
     @Transactional(readOnly = true)
     public EvaluationResult evaluate(String key, Environment environment, String bucketKey, Object defaultValue) {
@@ -275,8 +261,6 @@ public class FlagService {
     private String actorOrUnknown(String actor) {
         return actor == null || actor.isBlank() ? "unknown" : actor;
     }
-
-    // ---- cache payload is a minimal FlagCacheEntry, not the full entity - see that record's Javadoc for why ----
 
     private String serializeCacheEntry(FlagCacheEntry entry) {
         try {

@@ -21,17 +21,10 @@ import org.springframework.data.domain.Sort;
 
 import java.util.function.Supplier;
 
-/**
- * gRPC face of feature-flag-service - every RPC calls straight into
- * {@link FlagService}, the same engine FlagController uses, so REST and
- * gRPC callers get identical validation and behavior. See
- * featureflag.proto for the wire shapes this adapts to/from.
- */
 @Slf4j
 @GrpcService
 @RequiredArgsConstructor
 public class FeatureFlagGrpcServiceImpl extends FeatureFlagGrpcServiceGrpc.FeatureFlagGrpcServiceImplBase {
-
     private final FlagService flagService;
     private final FlagValueCodec valueCodec;
     private final FlagProtoMapper mapper;

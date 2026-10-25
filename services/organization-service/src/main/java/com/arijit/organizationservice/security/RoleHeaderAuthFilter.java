@@ -15,21 +15,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Same trust-boundary pattern as every other internal service:
- * organization-service never sees the client's JWT directly, only the
- * Gateway's already-verified {@code X-User-Email}/{@code X-User-Roles}
- * headers, forwarded over the gRPC Forward RPC + a loopback HTTP call.
- * <p>
- * These roles are auth-service's *platform* roles (ROLE_USER/ROLE_ADMIN) -
- * every Developer Portal caller is just ROLE_USER. The finer-grained
- * per-organization role (OWNER/ADMIN/MEMBER, see OrgRole) is looked up
- * from this service's own OrganizationMember table inside each service
- * method, not derived from anything in the JWT, since it varies per
- * organization for the same user.
- */
 public class RoleHeaderAuthFilter extends OncePerRequestFilter {
-
     public static final String HEADER_USER_EMAIL = "X-User-Email";
     public static final String HEADER_USER_ID = "X-User-Id";
     public static final String HEADER_USER_ROLES = "X-User-Roles";
@@ -37,7 +23,6 @@ public class RoleHeaderAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
                                      @NonNull FilterChain filterChain) throws ServletException, IOException {
-
         String email = request.getHeader(HEADER_USER_EMAIL);
         String rolesHeader = request.getHeader(HEADER_USER_ROLES);
 

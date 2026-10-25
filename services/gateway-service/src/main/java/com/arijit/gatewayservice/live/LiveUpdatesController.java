@@ -16,19 +16,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.List;
 
 /**
- * One stream, every event type, admin-only for now - almost everything on
- * the shared event bus today is platform-ops data (deployments, jobs,
- * flags, monitoring), same as the REST endpoints that already expose it.
- * Client-side filtering by event type (the SSE {@code event:} field is
- * set to the event's eventType) is expected rather than a server-side
- * subscription API - simpler to start with, and this is a genuinely new
- * capability rather than a fix, so keeping the first version minimal on
- * purpose.
- * <p>
- * Deliberately NOT proxied through ProxyController/gRPC like every other
- * route: an SSE connection is long-lived and this data doesn't belong to
- * any single downstream service (it's the fan-in of all of them), so it's
- * served directly from the Gateway, which is also the only place JWT
+ * Deliberately NOT proxied through ProxyController/gRPC like every other route: an SSE connection
+ * is long-lived and this data doesn't belong to any single downstream service (it's the fan-in of
+ * all of them), so it's served directly from the Gateway, which is also the only place JWT
  * verification already happens without a round-trip.
  */
 @RestController
@@ -36,7 +26,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Live Updates", description = "Admin-only: SSE stream of every platform domain event")
 public class LiveUpdatesController {
-
     private final SseEmitterRegistry registry;
 
     @GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

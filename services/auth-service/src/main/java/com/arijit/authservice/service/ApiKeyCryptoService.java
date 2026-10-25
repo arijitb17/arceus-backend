@@ -10,30 +10,11 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
+import lombok.extern.slf4j.Slf4j;
 
-/**
- * AES-256-GCM encryption for {@link com.arijit.authservice.entity.ApiKey#encryptedKey}.
- * <p>
- * <b>Why this exists at all:</b> API keys are normally hash-only - see
- * {@code ApiKeyService.create}'s original javadoc, still accurate for
- * {@code keyHash}, which is what actually authenticates a request. This
- * additional encrypted copy exists purely so a key can be shown again
- * after the creation dialog closes, at the person's explicit request,
- * fully aware that means whoever holds {@code AUTH_API_KEY_ENCRYPTION_KEY}
- * can decrypt every key ever issued - a real reduction in the guarantee
- * "even a full database dump can't be turned back into working keys" that
- * hash-only storage provides. That's a reasonable trade for a personal/
- * local project; it would not be for a real multi-tenant product.
- * <p>
- * Mirrors organization-service's SecretCryptoService exactly (see that
- * class's javadoc for the AES-GCM/IV-prefix scheme itself) - deliberately
- * copied rather than shared, since these are two different services with
- * two different KEKs and no reason to couple them through a shared
- * dependency for one small class.
- */
+@Slf4j
 @Component
 public class ApiKeyCryptoService {
-
     private static final int GCM_TAG_BITS = 128;
     private static final int GCM_IV_BYTES = 12;
 
@@ -62,6 +43,7 @@ public class ApiKeyCryptoService {
             buffer.put(iv).put(ciphertext);
             return Base64.getEncoder().encodeToString(buffer.array());
         } catch (Exception e) {
+            log.error("API key encryption failed", e);
             throw new IllegalStateException("API key encryption failed", e);
         }
     }
@@ -80,6 +62,7 @@ public class ApiKeyCryptoService {
             byte[] plaintext = cipher.doFinal(ciphertext);
             return new String(plaintext, StandardCharsets.UTF_8);
         } catch (Exception e) {
+            log.error("API key decryption failed - wrong KEK or corrupted ciphertext?", e);
             throw new IllegalStateException("API key decryption failed", e);
         }
     }

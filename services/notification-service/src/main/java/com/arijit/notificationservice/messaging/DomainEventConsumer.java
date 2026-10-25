@@ -13,27 +13,13 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * notification-service's queue is bound to "user.registered" plus the
- * terminal deployment-lifecycle routing keys (see RabbitMQConfig) - this
- * listener branches on eventType defensively either way, since RabbitMQ
- * bindings can be widened further later without this method needing to
- * change shape.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class DomainEventConsumer {
-
     private final NotificationDispatchService dispatchService;
     private final IdempotencyGuard idempotencyGuard;
 
-    // Deployment status notifications aren't about any one end-user, so
-    // there's no "recipient" on the event itself the way there is for
-    // UserRegisteredEvent - they go to a configured deploy-alerts mailbox
-    // instead. Same shape as deployment-service's own
-    // arceus.deployment.internal.api-token: a single operator-configured
-    // value, not something end users ever touch.
     @Value("${arceus.notification.deployment-alert-email:deploy-alerts@arceus.local}")
     private String deploymentAlertEmail;
 
@@ -45,10 +31,9 @@ public class DomainEventConsumer {
             return;
         }
 
-        // Deliberately NOT catching a broad Exception here anymore - see
-        // OtpConsumer's javadoc for why: a transient failure should retry
-        // with backoff and dead-letter once exhausted, not be silently
-        // logged and dropped.
+        // Deliberately NOT catching a broad Exception here anymore - see OtpConsumer's javadoc for
+        // why: a transient failure should retry with backoff and dead-letter once exhausted, not be
+        // silently logged and dropped.
         switch (envelope.eventType()) {
             case "USER_REGISTERED" -> {
                 Map<String, Object> payload = envelope.payload();
@@ -66,7 +51,6 @@ public class DomainEventConsumer {
         idempotencyGuard.markProcessed(envelope.eventId());
     }
 
-    /** Shared by every deployment.* outcome - same payload shape published by DeploymentEventPublisher, just a different template per outcome. */
     private void sendDeploymentNotification(String templateCode, EventEnvelope envelope) {
         Map<String, Object> payload = envelope.payload();
         Map<String, Object> variables = new HashMap<>();

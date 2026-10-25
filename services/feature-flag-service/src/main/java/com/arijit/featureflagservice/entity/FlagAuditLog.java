@@ -11,12 +11,11 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * "Who changed what, when" for GET /flags/history - kept locally so that
- * endpoint stays fast and self-contained, in addition to (not instead of)
- * publishing the same change onto the platform's domain event bus (see
- * FlagEventPublisher) for audit-service's own independent system of
- * record. flagId is nullable because a DELETE's audit row must still be
- * queryable after the flag row itself is gone.
+ * "Who changed what, when" for GET /flags/history - kept locally so that endpoint stays fast and
+ * self-contained, in addition to (not instead of) publishing the same change onto the platform's
+ * domain event bus (see FlagEventPublisher) for audit-service's own independent system of record.
+ * flagId is nullable because a DELETE's audit row must still be queryable after the flag row itself
+ * is gone.
  */
 @Entity
 @Table(name = "feature_flag_audit_log", indexes = {
@@ -29,7 +28,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FlagAuditLog {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

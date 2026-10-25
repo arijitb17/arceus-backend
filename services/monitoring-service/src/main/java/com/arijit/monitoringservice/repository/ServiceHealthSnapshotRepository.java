@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ServiceHealthSnapshotRepository extends JpaRepository<ServiceHealthSnapshot, UUID> {
-
     Optional<ServiceHealthSnapshot> findTopByServiceNameOrderByCheckedAtDesc(String serviceName);
 
     Page<ServiceHealthSnapshot> findByServiceNameOrderByCheckedAtDesc(String serviceName, Pageable pageable);

@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,34 +18,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Optional;
 
-/**
- * An alternative to the Bearer/JWT flow for programmatic or
- * service-to-service callers that would rather hold one long-lived
- * credential than manage a refresh cycle. Presented via the
- * {@code X-API-Key} header; if present and valid, authenticates the
- * request as the key's owning user (with that user's actual roles, via
- * CustomUserDetailsService - a revoked/disabled user's keys stop working
- * automatically).
- * <p>
- * Recognizes both platform-level keys ({@code ak_}) and project-scoped
- * keys ({@code pk_}/{@code sk_}, architecture design §7) - either way the
- * request authenticates as the key's owning user. For a project-scoped
- * key, the resolved {@link ApiKey}'s project/environment/scopes are
- * stashed as request attributes ({@link #ATTR_PROJECT_ID} etc.) so a
- * controller (or, eventually, the Gateway's own tenant-resolution layer -
- * see the architecture design's §3, not yet built) can read them without
- * a second lookup. This filter only ever authenticates requests to
- * <i>auth-service's own</i> endpoints when called directly with an API
- * key (e.g. an admin's own CI key hitting {@code /api/auth/users/me}) -
- * propagating a resolved tenant context to every <i>other</i> service via
- * the Gateway is the still-open piece the design doc calls out.
- * <p>
- * Not a {@code @Component} for the same reason JwtAuthFilter isn't - see
- * its javadoc.
- */
+@Slf4j
 @RequiredArgsConstructor
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
-
     public static final String HEADER_NAME = "X-API-Key";
 
     public static final String ATTR_ORGANIZATION_ID = "arceus.apiKey.organizationId";
@@ -59,7 +35,6 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
                                      @NonNull FilterChain filterChain) throws ServletException, IOException {
-
         String rawKey = request.getHeader(HEADER_NAME);
 
         if (rawKey != null && !rawKey.isBlank() && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -72,6 +47,8 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                             userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    log.debug("Authenticated via API key: keyId={} prefix={} project={}",
+                            apiKey.getId(), apiKey.getKeyPrefix(), apiKey.getProjectId());
 
                     if (apiKey.getProjectId() != null) {
                         request.setAttribute(ATTR_ORGANIZATION_ID, apiKey.getOrganizationId().toString());
@@ -82,12 +59,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                             request.setAttribute(ATTR_SCOPES, apiKey.getScopes());
                         }
                     }
+                } else {
+                    log.warn("API key rejected: owner account disabled, keyId={}", apiKey.getId());
                 }
+            } else {
+                log.debug("API key rejected: unknown or revoked key for {} {}", request.getMethod(), request.getRequestURI());
             }
-            // Any other outcome (unknown/revoked key, disabled owner) is
-            // deliberately silent here - same as JwtAuthFilter, this just
-            // leaves the request unauthenticated and lets
-            // authorizeHttpRequests decide whether that's allowed.
         }
 
         filterChain.doFilter(request, response);

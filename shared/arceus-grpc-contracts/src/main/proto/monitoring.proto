@@ -8,21 +8,10 @@ option java_outer_classname = "MonitoringProto";
 
 import "gateway.proto";
 
-// gRPC face of monitoring-service - mirrors com.arijit.monitoringservice.dto.*
-// field-for-field, same convention as featureflag.proto, so REST and gRPC
-// callers see identical data. Used by other in-platform services (or an
-// internal ops tool) that want a fast, typed, in-cluster path to platform
-// health/metrics/alerts instead of the REST API.
-//
-// Every RPC here is read-only - alert rule *mutation* (create/update/delete)
-// is deliberately REST-only today (see AlertController), since that's an
-// admin-console action, not a hot in-cluster path. GetAlerts here returns
-// alert *events* (triggered/resolved history), not rule definitions.
-
 message ServiceHealth {
   string service_name = 1;
-  string status = 2;              // UP | DOWN | DEGRADED | UNKNOWN
-  string database_status = 3;     // UP | DOWN | UNKNOWN | N/A
+  string status = 2;
+  string database_status = 3;
   string cache_status = 4;
   string rabbit_status = 5;
   string grpc_status = 6;
@@ -75,7 +64,7 @@ message ServiceMetrics {
 }
 
 message GetMetricsRequest {
-  string service_name = 1; // empty = every monitored service
+  string service_name = 1;
 }
 
 message GetMetricsResponse {
@@ -85,19 +74,19 @@ message GetMetricsResponse {
 message AlertEventInfo {
   string id = 1;
   string rule_name = 2;
-  string alert_type = 3;    // SERVICE_DOWN | HIGH_CPU | HIGH_MEMORY | HIGH_ERROR_RATE | HIGH_RESPONSE_TIME | RABBITMQ_OFFLINE | REDIS_OFFLINE | DATABASE_OFFLINE
-  string service_name = 4;  // empty = platform-wide rule
-  string severity = 5;      // CRITICAL | WARNING | INFO
+  string alert_type = 3;
+  string service_name = 4;
+  string severity = 5;
   string message = 6;
-  string state = 7;         // ACTIVE | RESOLVED
+  string state = 7;
   double metric_value = 8;
   int64 triggered_at_epoch_millis = 9;
-  int64 resolved_at_epoch_millis = 10; // 0 = not resolved
+  int64 resolved_at_epoch_millis = 10;
 }
 
 message GetAlertsRequest {
-  string state = 1;         // optional filter: ACTIVE | RESOLVED, empty = all
-  string service_name = 2;  // optional filter
+  string state = 1;
+  string service_name = 2;
   int32 page = 3;
   int32 size = 4;
 }

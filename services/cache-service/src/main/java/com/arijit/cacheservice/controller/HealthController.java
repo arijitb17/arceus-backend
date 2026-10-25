@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @Tag(name = "Health", description = "Redis connectivity, connection pool status, and memory usage")
 public class HealthController {
-
     private final HealthService healthService;
 
     @GetMapping("/health")

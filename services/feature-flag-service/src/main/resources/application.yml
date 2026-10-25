@@ -5,12 +5,9 @@ grpc:
   server:
     port: ${FEATURE_FLAG_GRPC_PORT:9087}
   client:
-    # Used by FlagSchedulingService to register the HTTP_CALLBACK jobs
-    # that drive scheduled activation/deactivation.
     scheduler:
       address: static://${SCHEDULER_GRPC_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
       negotiation-type: plaintext
-    # Used by FlagCacheService instead of talking to Redis directly.
     cache:
       address: static://${CACHE_GRPC_HOST:localhost}:${CACHE_GRPC_PORT:9085}
       negotiation-type: plaintext
@@ -18,9 +15,6 @@ grpc:
 spring:
   autoconfigure:
     exclude:
-      # Spring Security here is for the REST layer only, not gRPC - gRPC
-      # auth is handled by GrpcAuthInterceptor instead (see
-      # scheduler-service's application.yml for the same exclusion and why).
       - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
 
   application:
@@ -34,7 +28,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # fine for pre-release dev; move to Flyway + validate before v1.0.0
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -70,56 +64,29 @@ management:
   endpoints:
     web:
       exposure:
-        # 'metrics' + show-details below are what let monitoring-service's
-        # ServiceHealthCollector/ServiceMetricsCollector see this service's
-        # db/redis/rabbit component breakdown and JVM/CPU/request metrics.
         include: health,info,metrics
   endpoint:
     health:
       show-details: always
 
-# --- Arceus Feature Flag Service specific configuration -----------------
 arceus:
   feature-flag:
     cache:
-      # Redis is optional per the platform stack - if disabled or
-      # unreachable, evaluation falls back to reading Postgres directly
-      # (see FlagCacheService). Never a hard dependency for correctness,
-      # only for latency.
       enabled: ${FEATURE_FLAG_CACHE_ENABLED:true}
       ttl-seconds: ${FEATURE_FLAG_CACHE_TTL_SECONDS:60}
 
     internal:
-      # Shared secret every internal caller (REST or gRPC) must present -
-      # see InternalTokenAuthFilter / GrpcAuthInterceptor. Also what the
-      # scheduler-callback endpoints check as a query parameter (see
-      # FlagScheduleCallbackController). Must match exactly on every
-      # calling service's side, and match scheduler-service's own
-      # arceus.scheduler.internal.api-token if this instance also acts as
-      # a scheduler-service caller in a shared environment.
       api-token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}
 
     scheduling:
-      # Delegates scheduled activation/deactivation to scheduler-service
-      # rather than polling for due flags itself - see
-      # FlagSchedulingService. Disabling this simply means
-      # activateAt/deactivateAt on a flag are stored but never acted on.
       enabled: ${FEATURE_FLAG_SCHEDULING_ENABLED:true}
-      # Base URL scheduler-service's HTTP_CALLBACK jobs use to call back
-      # into this service - must be reachable from scheduler-service's pod/host.
       callback-base-url: ${FEATURE_FLAG_CALLBACK_BASE_URL:http://localhost:8087}
 
-    # x-internal-token this service must present when it calls
-    # scheduler-service's gRPC API - see GrpcClientConfig. Must match
-    # scheduler-service's own arceus.scheduler.internal.api-token exactly.
     grpc-clients:
       scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
 
 logging:
   pattern:
-    # Every Arceus service logs with this same correlation-id pattern so
-    # log lines from different services can be stitched together by
-    # correlationId when tracing a single request across the platform.
     level: "%5p [correlationId=%X{correlationId:-}]"
   level:
     com.arijit.featureflagservice: ${LOG_LEVEL_FEATURE_FLAG_SERVICE:INFO}

@@ -13,18 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * The other half of EXPIRED handling - JobOutcomeService.onSuccess catches
- * a recurring job whose *next* occurrence would be past expiresAt, but a
- * job that's never fired at all (still PENDING/SCHEDULED/PAUSED) needs
- * something to notice its expiresAt has simply passed. Runs far less often
- * than the poll loop since expiry is a much coarser-grained concern.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JobExpiryService {
-
     private final JobRepository jobRepository;
     private final JobLifecycleEventPublisher eventPublisher;
 

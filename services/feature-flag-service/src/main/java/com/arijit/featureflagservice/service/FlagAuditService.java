@@ -11,17 +11,10 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * "Audit every configuration change" - one row per mutation, kept locally
- * so GET /flags/history is fast and self-contained. See FlagVersion for
- * the complementary "what did the flag look like" concern, and
- * FlagEventPublisher for the platform-wide copy sent to audit-service.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FlagAuditService {
-
     private static final String MDC_CORRELATION_ID_KEY = "correlationId";
 
     private final FlagAuditLogRepository auditLogRepository;

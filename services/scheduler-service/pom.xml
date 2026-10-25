@@ -37,16 +37,11 @@
     </properties>
 
     <dependencies>
-        <!-- gRPC server: exposes SchedulerGrpcService for in-cluster callers
-             (any service that wants a typed, low overhead path instead of
-             the REST API) -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-server-spring-boot-starter</artifactId>
             <version>${grpc-spring.version}</version>
         </dependency>
-        <!-- gRPC client: calls feature-flag-service to gate job execution
-             per calling service - see featureflag.JobFlagGateService. -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-client-spring-boot-starter</artifactId>
@@ -85,9 +80,6 @@
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
-        <!-- Own database: job definitions, execution history, dead letters.
-             Per the platform rule "services never access another service's
-             database", this is a separate schema from every other service's. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -98,8 +90,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- HTTP_CALLBACK job targets are invoked with a plain blocking
-             RestClient - no reactive stack needed elsewhere in this service. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>

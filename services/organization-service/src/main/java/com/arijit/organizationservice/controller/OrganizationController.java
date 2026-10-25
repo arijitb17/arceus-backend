@@ -16,18 +16,10 @@ import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Developer Portal's org management surface. Every method resolves the
- * caller's identity from {@link Principal#getName()}, which is the email
- * RoleHeaderAuthFilter put there from the Gateway's X-User-Email header -
- * see that filter's javadoc for why this service works in terms of email,
- * not a user UUID.
- */
 @RestController
 @RequestMapping("/organizations")
 @RequiredArgsConstructor
 public class OrganizationController {
-
     private final OrganizationService organizationService;
 
     @PostMapping

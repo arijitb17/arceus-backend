@@ -26,16 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/**
- * Alert Rule Management - read available to any authenticated caller
- * ("Read-only metrics for most users"), mutation restricted to ROLE_ADMIN
- * ("Admin-only alert management") per the spec's Security section.
- */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Alerts", description = "Alert Rule Management")
 public class AlertController {
-
     private final AlertRuleService alertRuleService;
 
     @GetMapping("/alerts")

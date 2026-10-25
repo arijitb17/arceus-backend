@@ -10,17 +10,8 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-// Consumer side: this service owns declaring the queue and its binding,
-// since it's the one actually reading from it.
-//
-// Both queues below dead-letter into arceus.events.dlx after
-// spring.rabbitmq.listener.simple.retry's attempts are exhausted (see
-// application.yml) - a poison OTP/event message or a prolonged outage
-// parks it in its own .dlq queue instead of looping forever or being
-// silently dropped.
 @Configuration
 public class RabbitMQConfig {
-
     @Bean
     public DirectExchange deadLetterExchange() {
         return new DirectExchange(ArceusEventsTopology.DEAD_LETTER_EXCHANGE);
@@ -54,9 +45,6 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(otpQueue).to(otpExchange).with(OtpMessagingTopology.OTP_ROUTING_KEY);
     }
 
-    // Domain events bus - notification-service only cares about events it
-    // can act on today (UserRegisteredEvent -> WELCOME email). Adding a new
-    // "send X on Y event" rule later just means adding another binding here.
     @Bean
     public TopicExchange eventsExchange() {
         return new TopicExchange(ArceusEventsTopology.EVENTS_EXCHANGE);
@@ -87,13 +75,6 @@ public class RabbitMQConfig {
                 .with(ArceusEventsTopology.RK_USER_REGISTERED);
     }
 
-    // Deployment pipeline's "Notification sends deployment status" step -
-    // only the terminal outcomes a human actually wants to hear about
-    // (success/failure/rollback/cancellation), not the CREATED/STARTED
-    // transitions, to keep this from paging someone twice per deploy.
-    // Same queue as userRegisteredBinding above - one consumer method
-    // (DomainEventConsumer) branches on eventType, exactly like it already
-    // does for USER_REGISTERED.
     @Bean
     public Binding deploymentCompletedBinding(Queue notificationEventsQueue, TopicExchange eventsExchange) {
         return BindingBuilder.bind(notificationEventsQueue)

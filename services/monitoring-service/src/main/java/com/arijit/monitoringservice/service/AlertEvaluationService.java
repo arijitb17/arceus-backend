@@ -19,26 +19,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * After every polling cycle, ServicePollingService calls {@link
- * #evaluate} once per monitored service with that service's freshest
- * health + metric snapshot. Every enabled {@link AlertRule} that applies to
- * that service (platform-wide rules apply to all; scoped rules only to
- * their one service) is checked against the condition its {@link
- * com.arijit.monitoringservice.entity.AlertType} defines.
- * <p>
- * At most one ACTIVE {@link AlertEvent} exists per (rule, service) pair:
- * the first time a condition is observed true, a new ACTIVE event is
- * created and {@code alert.triggered} published; on every later cycle
- * while it's still true, nothing changes (no duplicate events); the first
- * time it's observed false again, the existing ACTIVE event is marked
- * RESOLVED and {@code alert.resolved} published.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AlertEvaluationService {
-
     private final AlertRuleRepository alertRuleRepository;
     private final AlertEventRepository alertEventRepository;
     private final MonitoringEventPublisher eventPublisher;

@@ -11,14 +11,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * Every request either brings its own X-Correlation-Id (from a calling
- * service that already has one) or gets a fresh one here - same convention
- * as every other Arceus service.
- */
 @Component
 public class CorrelationIdFilter extends OncePerRequestFilter {
-
     public static final String HEADER = "X-Correlation-Id";
     private static final String MDC_KEY = "correlationId";
 

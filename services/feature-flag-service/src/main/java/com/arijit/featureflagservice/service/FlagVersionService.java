@@ -10,20 +10,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-/**
- * Records one immutable {@link FlagVersion} snapshot per state-changing
- * operation - called from FlagService right after each successful save,
- * inside the same transaction, so a version row and the flag state it
- * describes are always consistent. A snapshot failure (e.g. a
- * serialization bug) is logged and swallowed rather than rolling back the
- * flag change itself - version history is valuable but not as important
- * as the mutation it's recording actually succeeding.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FlagVersionService {
-
     private final FlagVersionRepository versionRepository;
     private final ObjectMapper objectMapper;
 

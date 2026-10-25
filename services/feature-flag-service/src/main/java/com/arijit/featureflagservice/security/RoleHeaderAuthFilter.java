@@ -16,30 +16,17 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * feature-flag-service never sees a client's JWT directly - the Gateway
- * already verified it and forwards who the caller is via
- * {@code X-User-Email}/{@code X-User-Roles} headers, same convention as
- * notification-service. This filter trusts those
- * headers and builds the same kind of Authentication a JWT filter would,
- * so {@code @PreAuthorize} on FlagController works exactly like it would
- * in a service that validates tokens itself.
- * <p>
- * <b>Trust boundary:</b> this only works because feature-flag-service's
- * HTTP port is not reachable from outside the platform's internal
- * network - every external (human/admin-console) request goes through
- * the Gateway. Service-to-service callers that don't have a user JWT at
- * all (e.g. a background job evaluating a flag) authenticate instead via
- * {@link InternalTokenAuthFilter}.
+ * feature-flag-service never sees a client's JWT directly - the Gateway already verified it and
+ * forwards who the caller is via {@code X-User-Email}/{@code X-User-Roles} headers, same convention
+ * as notification-service.
  */
 public class RoleHeaderAuthFilter extends OncePerRequestFilter {
-
     public static final String HEADER_USER_EMAIL = "X-User-Email";
     public static final String HEADER_USER_ROLES = "X-User-Roles";
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
                                      @NonNull FilterChain filterChain) throws ServletException, IOException {
-
         String email = request.getHeader(HEADER_USER_EMAIL);
         String rolesHeader = request.getHeader(HEADER_USER_ROLES);
 

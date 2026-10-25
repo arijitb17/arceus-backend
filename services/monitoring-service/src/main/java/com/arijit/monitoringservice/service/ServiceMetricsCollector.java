@@ -11,34 +11,10 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Performs one metrics collection against one monitored service, per the
- * spec's Metrics list: Request Count, Error Count, Success Rate, Response
- * Time, CPU Usage, Memory Usage, JVM Metrics, Thread Count, Active
- * Connections, Queue Size, Cache Hit/Miss Ratio, Scheduler Jobs, Feature
- * Flag Evaluations, Rate Limit Requests.
- * <p>
- * The "universal" fields (CPU, memory, threads, request count/error/avg
- * response time) come straight from every Spring Boot Actuator app's
- * built-in Micrometer meters ({@code process.cpu.usage},
- * {@code jvm.memory.used/max}, {@code jvm.threads.live}, {@code
- * http.server.requests}) - zero extra instrumentation needed on the
- * monitored service's side, only {@code metrics} added to that service's
- * {@code management.endpoints.web.exposure.include}.
- * <p>
- * The "service-specific" fields (queue size, cache hit ratio, scheduler
- * jobs, feature-flag evaluations, rate-limit requests) only exist once/if
- * the owning service publishes a custom Micrometer meter under one of the
- * names in {@link #tryCustomMeters}. Every such lookup is wrapped so a
- * missing meter degrades to a {@code null} field rather than failing the
- * whole collection - see ServiceMetricSnapshot's Javadoc for why {@code
- * null} (not 0) is the deliberate "not instrumented yet" signal.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ServiceMetricsCollector {
-
     private final RestClient monitoringRestClient;
 
     public ServiceMetricSnapshot collect(String serviceName, MonitoringProperties.Target target) {
@@ -91,13 +67,6 @@ public class ServiceMetricsCollector {
         });
     }
 
-    /**
-     * Best-effort lookup of service-specific meters that only exist once a
-     * given service has been instrumented for them - none are guaranteed to
-     * exist in the platform today, so every miss silently leaves the
-     * corresponding field {@code null} rather than logging noise on every
-     * poll cycle.
-     */
     private void tryCustomMeters(String serviceName, MonitoringProperties.Target target, ServiceMetricSnapshot.ServiceMetricSnapshotBuilder builder) {
         metric(target, "cache.gets", "result:hit").ifPresent(hits ->
                 metric(target, "cache.gets", "result:miss").ifPresent(misses -> {
@@ -135,6 +104,7 @@ public class ServiceMetricsCollector {
             Map<String, Object> body = monitoringRestClient.get().uri(uri).retrieve().body(Map.class);
             return Optional.ofNullable(body);
         } catch (Exception e) {
+            log.debug("Could not fetch metric '{}' from {}: {}", name, target.baseUrl(), e.toString());
             return Optional.empty();
         }
     }

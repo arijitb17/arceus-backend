@@ -22,23 +22,13 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Health Dashboard - assembles everything the spec asks the dashboard to
- * display: Overall Platform Status, Individual Service Status, Service
- * Uptime, Recent Alerts, Active Alerts, Platform Metrics, Resource Usage.
- * <p>
- * This is the one read path expensive enough to be worth the "Redis
- * (optional caching)" the platform stack lists: a short-TTL cache of the
- * fully-assembled response, so several admin-console tabs polling
- * /dashboard every few seconds don't each recompute alert queries and
- * aggregate every service's metrics from scratch. If Redis is unavailable
- * this degrades transparently to computing fresh on every call - the
+ * If Redis is unavailable this degrades transparently to computing fresh on every call - the
  * dashboard is never allowed to fail just because the cache is down.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DashboardService {
-
     private static final String CACHE_KEY = "monitoring:dashboard";
     private static final Duration CACHE_TTL = Duration.ofSeconds(5);
     private static final int RECENT_ALERTS_LIMIT = 10;

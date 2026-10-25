@@ -18,6 +18,7 @@ import io.grpc.StatusRuntimeException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,29 +27,10 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.function.Function;
 
-/**
- * The only REST surface clients ever talk to for any downstream service.
- * Everything under /api/&lt;service&gt;/** is:
- * <ol>
- *   <li>matched to a downstream service via {@link Route},</li>
- *   <li>rewritten from the client-facing path to that service's own
- *       internal REST path (they don't all share the /api/&lt;service&gt;
- *       prefix - notification-service predates the Gateway and keeps its
- *       original paths, and monitoring-service's endpoints have no common
- *       prefix at all, hence the empty downstreamPrefix on MONITORING),</li>
- *   <li>packed into a generic HttpRequestMessage and sent over gRPC,</li>
- *   <li>and the HttpResponseMessage that comes back is replayed onto the
- *       client's HttpServletResponse as-is.</li>
- * </ol>
- * JWT validation, the per-route feature-flag kill-switch, and rate
- * limiting already happened in filters before this controller is ever
- * reached; RateLimiter Service itself and the /health endpoint are not
- * proxied through here.
- */
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class ProxyController {
-
     private enum Route {
         AUTH("/api/auth", "/api/auth"),
         NOTIFICATIONS("/api/notifications", "/notifications"),
@@ -119,15 +101,12 @@ public class ProxyController {
 
     private void forward(Route route, Function<HttpRequestMessage, HttpResponseMessage> call,
                           HttpServletRequest request, HttpServletResponse response) throws IOException {
-
         String downstreamPath = route.toDownstreamPath(request.getRequestURI());
         String requestId = String.valueOf(request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE));
         Object userEmail = request.getAttribute(JwtAuthFilter.USER_EMAIL_ATTRIBUTE);
         @SuppressWarnings("unchecked")
         java.util.List<String> userRoles = (java.util.List<String>) request.getAttribute(JwtAuthFilter.USER_ROLES_ATTRIBUTE);
 
-        // Only set when ApiKeyAuthFilter authenticated this request via a
-        // project-scoped key - see that filter's javadoc.
         HttpMessageMapper.TenantHeaders tenant = new HttpMessageMapper.TenantHeaders(
                 stringAttr(request, ApiKeyAuthFilter.TENANT_ORGANIZATION_ID_ATTRIBUTE),
                 stringAttr(request, ApiKeyAuthFilter.TENANT_PROJECT_ID_ATTRIBUTE),
@@ -147,10 +126,8 @@ public class ProxyController {
                         route.name(), result.getStatus());
             }
         } catch (StatusRuntimeException ex) {
-            // The gRPC channel itself failed (service down, connection refused,
-            // deadline exceeded) - distinct from the downstream service returning
-            // a normal non-2xx REST response, which arrives as a regular
-            // HttpResponseMessage and is just replayed above.
+            log.error("Upstream {} unavailable for {} {} (requestId={}): {}",
+                    route, request.getMethod(), downstreamPath, requestId, ex.getStatus(), ex);
             throw new ApiException(
                     "Upstream service is currently unavailable (%s)".formatted(ex.getStatus().getCode()),
                     HttpStatus.BAD_GATEWAY);

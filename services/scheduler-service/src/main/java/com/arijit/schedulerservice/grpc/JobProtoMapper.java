@@ -7,16 +7,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 
-/**
- * Converts between the JPA {@link Job} entity and {@code
- * com.arijit.arceus.grpc.scheduler.Job} (the wire message - referenced
- * fully-qualified throughout this class since its simple name collides
- * with the entity). Timestamps go over the wire as epoch millis (0 = "not
- * set"), matching scheduler.proto's comments.
- */
+
 @Component
 public class JobProtoMapper {
-
     public com.arijit.arceus.grpc.scheduler.Job toProto(Job job) {
         var builder = com.arijit.arceus.grpc.scheduler.Job.newBuilder()
                 .setId(job.getId().toString())

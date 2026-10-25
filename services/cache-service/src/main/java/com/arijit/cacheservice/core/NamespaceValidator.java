@@ -9,16 +9,9 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/**
- * Every cache operation must belong to a namespace (auth, session, otp,
- * user, notification, ratelimit, ...). This is the single choke point that
- * enforces that, so no controller/service method can accidentally operate
- * on an un-namespaced or disallowed key.
- */
 @Component
 @RequiredArgsConstructor
 public class NamespaceValidator {
-
     private static final Pattern VALID_NAMESPACE = Pattern.compile("^[a-zA-Z0-9_-]{1,64}$");
 
     private final CacheProperties cacheProperties;
@@ -46,12 +39,6 @@ public class NamespaceValidator {
         }
     }
 
-    /**
-     * Namespace-eviction and pattern-eviction are destructive across many
-     * keys, so pattern eviction is additionally required to be scoped to a
-     * single allowed namespace prefix (e.g. "session:user:*") rather than a
-     * pattern that could match the entire keyspace (e.g. "*").
-     */
     public void validatePatternIsNamespaceScoped(String pattern) {
         if (pattern == null || pattern.isBlank()) {
             throw new ApiException("pattern is required", HttpStatus.BAD_REQUEST);

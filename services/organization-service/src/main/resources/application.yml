@@ -5,12 +5,6 @@ grpc:
   server:
     port: ${ORGANIZATION_GRPC_PORT:9090}
   client:
-    # Used by SdkConfigService to get a project's PUBLIC API key on demand
-    # when generating SDK config (architecture design §9), and by
-    # ModuleEnablementService to call AuthTenantProvisioningService directly
-    # (see that class's updated javadoc for why organization-service now
-    # orchestrates provisioning itself instead of going through
-    # deployment-service's event pipeline).
     auth:
       address: static://${AUTH_GRPC_HOST:localhost}:${AUTH_GRPC_PORT:9081}
       negotiation-type: plaintext
@@ -43,7 +37,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # fine for pre-release dev; move to Flyway + validate before v1.0.0
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -66,25 +60,11 @@ spring:
           max-attempts: 5
         default-requeue-rejected: false
 
-# AES-256 key (32 raw bytes, base64-encoded) used to encrypt every Secret
-# row - see SecretCryptoService's javadoc. Generate with:
-#   openssl rand -base64 32
-# Must be supplied via env var in every real environment; the fallback
-# below is dev-only and intentionally obviously-a-placeholder.
 arceus:
   organization:
     secrets:
       kek: ${ORGANIZATION_SECRETS_KEK:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
-    # The Gateway's own public-facing base URL - handed to developers in
-    # generated SDK config (architecture design §9) as the endpoint their
-    # SDK talks to. Not auto-discovered: this is a deployment-time constant,
-    # the same way a frontend app's own API base URL is normally configured.
     gateway-base-url: ${ARCEUS_GATEWAY_BASE_URL:http://localhost:8090}
-    # x-internal-token this service must present when calling
-    # scheduler-service/feature-flag-service's gRPC API (their
-    # GrpcAuthInterceptor is global, same reasoning as gateway-service's
-    # own grpc-clients block). auth/notification/cache trust the caller's
-    # network boundary and need no token - see ModuleProvisioningClient.
     grpc-clients:
       scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
       feature-flag-token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}

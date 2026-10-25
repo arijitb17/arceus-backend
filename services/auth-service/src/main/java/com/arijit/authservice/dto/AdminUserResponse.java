@@ -8,9 +8,6 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
-// What an admin sees about another user - a superset of UserResponse (adds
-// accountEnabled and timestamps, which are only an admin's business), but
-// still deliberately never the User entity itself, so password can never leak.
 public record AdminUserResponse(
         UUID id,
         String name,

@@ -9,22 +9,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Two blocking stubs:
- * <ul>
- *   <li>{@code scheduler} - used by scheduler.RetryJobRegistrar to register
- *   the recurring notification-retry job.</li>
- *   <li>{@code feature-flag} - used by featureflag.ChannelFlagGateService
- *   to gate per-channel sending behind a flag.</li>
- * </ul>
- * Both targets run their own GrpcAuthInterceptor that rejects any RPC but
- * Ping without an {@code x-internal-token} matching that target's own
- * {@code arceus.<service>.internal.api-token} - so both stubs are built
- * with that header pre-attached via {@link MetadataUtils}.
- */
 @Configuration
 public class GrpcClientConfig {
-
     private static final Metadata.Key<String> TOKEN_HEADER =
             Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER);
 

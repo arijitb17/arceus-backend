@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 
 public interface FlagVersionRepository extends JpaRepository<FlagVersion, UUID> {
-
     Page<FlagVersion> findByFlagIdOrderByVersionNumberDesc(UUID flagId, Pageable pageable);
 
     Page<FlagVersion> findByFlagKeyOrderByVersionNumberDesc(String flagKey, Pageable pageable);

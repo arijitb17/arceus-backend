@@ -10,24 +10,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * The receiving end of {@link com.arijit.featureflagservice.service.FlagSchedulingService}
- * - scheduler-service's HTTP_CALLBACK executor POSTs here at the instant a
- * flag's {@code activateAt}/{@code deactivateAt} arrives. Left open at the
- * Spring Security filter-chain level (see SecurityConfig) and instead
- * checks the {@code token} query parameter itself, because
- * scheduler-service's callback executor can't attach a custom auth
- * header per job - only a URL it POSTs to.
- * <p>
- * Idempotent: FlagService#enable/disable already no-op when the flag is
- * already in the target state, so a scheduler retry after a timeout (the
- * call succeeded but the response was lost) is harmless.
+ * Left open at the Spring Security filter-chain level (see SecurityConfig) and instead checks the
+ * {@code token} query parameter itself, because scheduler-service's callback executor can't attach
+ * a custom auth header per job - only a URL it POSTs to. Idempotent: FlagService#enable/disable
+ * already no-op when the flag is already in the target state, so a scheduler retry after a timeout
+ * (the call succeeded but the response was lost) is harmless.
  */
 @RestController
 @RequestMapping("/internal/flags")
 @RequiredArgsConstructor
 @Slf4j
 public class FlagScheduleCallbackController {
-
     private final FlagService flagService;
     private final FeatureFlagProperties properties;
 

@@ -17,24 +17,10 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * The heartbeat of the whole service: on a fixed delay (see {@code
- * arceus.monitoring.polling.interval-ms}), polls every service configured
- * under {@code arceus.monitoring.targets}, persists what it finds, updates
- * {@link LatestStateCache} for fast reads, evaluates alert rules, and
- * publishes {@code service.down}/{@code service.recovered} on state
- * transitions.
- * <p>
- * Each target is polled independently and failures are isolated per
- * service - one unreachable service can never prevent the others from
- * being polled or block the cycle (see the try/catch per-target inside
- * {@link #pollAll}).
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ServicePollingService {
-
     private final MonitoringProperties properties;
     private final ServiceHealthCollector healthCollector;
     private final ServiceMetricsCollector metricsCollector;
@@ -44,7 +30,6 @@ public class ServicePollingService {
     private final AlertEvaluationService alertEvaluationService;
     private final MonitoringEventPublisher eventPublisher;
 
-    /** Tracks the last-known status per service purely to detect UP<->DOWN transitions for service.down/service.recovered. */
     private final Map<String, ServiceStatus> lastKnownStatus = new ConcurrentHashMap<>();
 
     @EventListener(ApplicationReadyEvent.class)
@@ -75,9 +60,9 @@ public class ServicePollingService {
 
             alertEvaluationService.evaluate(serviceName, health, metrics);
         } catch (Exception e) {
-            // A failure anywhere in this target's pipeline (collector, DB write,
-            // alert evaluation) must never propagate and skip the remaining
-            // targets in this cycle - each service's own poll is independent.
+            // A failure anywhere in this target's pipeline (collector, DB write, alert evaluation)
+            // must never propagate and skip the remaining targets in this cycle - each service's
+            // own poll is independent.
             log.error("Polling cycle failed for {}: {}", serviceName, e.getMessage(), e);
         }
     }
@@ -85,7 +70,7 @@ public class ServicePollingService {
     private void handleTransition(String serviceName, ServiceHealthSnapshot health) {
         ServiceStatus previous = lastKnownStatus.put(serviceName, health.getStatus());
         if (previous == null) {
-            return; // first observation this run - nothing to compare against yet
+            return;
         }
         if (previous != ServiceStatus.DOWN && health.getStatus() == ServiceStatus.DOWN) {
             eventPublisher.serviceDown(serviceName, health.getErrorMessage());

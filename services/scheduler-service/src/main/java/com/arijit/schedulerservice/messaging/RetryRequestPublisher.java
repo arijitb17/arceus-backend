@@ -10,7 +10,6 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class RetryRequestPublisher {
-
     private final RabbitTemplate rabbitTemplate;
 
     public void requestRetry(UUID jobId) {

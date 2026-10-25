@@ -8,32 +8,15 @@ option java_outer_classname = "TenantProvisioningProto";
 
 import "gateway.proto";
 
-// The provisioning half of the module-enablement workflow (architecture
-// design §4): organization-service asks "is AUTH enabled for project X in
-// PRODUCTION" via ModuleEnablement + the module.enable_requested event;
-// deployment-service consumes that event and calls exactly one of the RPCs
-// below - the one owned by the service that AUTHENTICATION/NOTIFICATION/
-// CACHE/SCHEDULER/FEATURE_FLAGS maps to - to actually create (or tear
-// down) whatever tenant-scoped resource that module needs.
-//
-// One request/response shape, repeated per service (same reasoning as
-// gateway.proto's repeated Forward/Ping per service) so deployment-service
-// can treat all five identically at the call site and only the target
-// stub differs.
 message ProvisionTenantRequest {
   string project_id = 1;
-  string environment = 2;   // DEVELOPMENT | STAGING | PRODUCTION
-  string requested_by = 3;  // email of the developer who enabled the module, for the audit trail
+  string environment = 2;
+  string requested_by = 3;
 }
 
 message ProvisionTenantResponse {
   bool success = 1;
   string message = 2;
-  // Opaque identifier for whatever the owning service created (a
-  // namespace, keyspace, sender identity, job group...) - deployment-
-  // service stores this on ModuleEnablement.provisioningDeploymentId's
-  // sibling field if/when one is needed; today it's surfaced for logging
-  // only. Empty for services that provision nothing distinct per tenant.
   string resource_reference = 3;
 }
 

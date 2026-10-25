@@ -11,18 +11,10 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * See GithubConnection's javadoc and RabbitMQConfig's GitHub-sync queue
- * comment: deployment-service owns the real GithubRepoConnection (and the
- * GitHub App installation detail behind it); this just mirrors enough of
- * it here for the Developer Portal to show connection status without a
- * cross-service call on every page load.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class GithubConnectionSyncConsumer {
-
     private final GithubConnectionRepository repository;
 
     @RabbitListener(queues = "arceus.organization.github-sync.queue")

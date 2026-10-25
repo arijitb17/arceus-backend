@@ -16,6 +16,8 @@ import com.arijit.authservice.repository.ApiKeyRepository;
 import com.arijit.authservice.repository.UserRepository;
 import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import com.arijit.arceus.events.logging.LogMasker;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,10 +32,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApiKeyService {
-
     private static final String PLATFORM_KEY_PREFIX = "ak_";
     private static final String PUBLIC_KEY_PREFIX = "pk_";
     private static final String SECRET_KEY_PREFIX = "sk_";
@@ -45,11 +47,6 @@ public class ApiKeyService {
     private final OrganizationAccessGrpcServiceGrpc.OrganizationAccessGrpcServiceBlockingStub organizationAccessStub;
     private final ApiKeyCryptoService apiKeyCryptoService;
 
-    /**
-     * @return the raw key - shown directly in the creation response, but
-     *         (unlike a pure hash-only design) also retrievable again later
-     *         via {@link #revealForOwner} - see ApiKey's javadoc for why.
-     */
     @Transactional
     public String create(String ownerEmail, String name) {
         User owner = requireUser(ownerEmail);
@@ -63,23 +60,24 @@ public class ApiKeyService {
                 .keyPrefix(rawKey.substring(0, 8))
                 .build());
 
+        log.info("API key created: userId={} keyId={} prefix={}", owner.getId(), apiKey.getId(), apiKey.getKeyPrefix());
         domainEventPublisher.publish(ApiKeyCreatedEvent.now(owner.getId(), owner.getEmail(), apiKey.getId(), apiKey.getKeyPrefix(), name));
         return rawKey;
     }
 
-    /** @return the decrypted raw key - see ApiKey's javadoc for the trade-off this represents. */
     public String revealForOwner(String ownerEmail, UUID apiKeyId) {
         User owner = requireUser(ownerEmail);
         ApiKey apiKey = apiKeyRepository.findByIdAndUser(apiKeyId, owner)
                 .orElseThrow(() -> new ApiException("No API key with id " + apiKeyId, HttpStatus.NOT_FOUND));
+        log.info("API key revealed: userId={} keyId={}", owner.getId(), apiKeyId);
         return decryptOrThrow(apiKey);
     }
 
     private String decryptOrThrow(ApiKey apiKey) {
         if (apiKey.getEncryptedKey() == null) {
-            // Created before AUTH_API_KEY_ENCRYPTION_KEY existed - nothing
-            // to decrypt, the raw key was genuinely never retained for
-            // this one. Not an error state, just an older row.
+            log.warn("API key reveal rejected: keyId={} has no retained encrypted key", apiKey.getId());
+            // Created before AUTH_API_KEY_ENCRYPTION_KEY existed - nothing to decrypt, the raw key
+            // was genuinely never retained for this one. Not an error state, just an older row.
             throw new ApiException("This key was created before reveal was supported - it can't be shown again. Revoke it and create a new one.", HttpStatus.GONE);
         }
         return apiKeyCryptoService.decrypt(apiKey.getEncryptedKey());
@@ -96,21 +94,10 @@ public class ApiKeyService {
                 .orElseThrow(() -> new ApiException("No API key with id " + apiKeyId, HttpStatus.NOT_FOUND));
         apiKey.setRevoked(true);
         apiKeyRepository.save(apiKey);
+        log.info("API key revoked: userId={} keyId={}", owner.getId(), apiKeyId);
         domainEventPublisher.publish(ApiKeyRevokedEvent.now(owner.getId(), owner.getEmail(), apiKeyId));
     }
 
-    // ---------- Project-scoped keys (architecture design §7) ----------
-
-    /**
-     * Issues a key scoped to one project+environment, for the Developer
-     * Portal's own key-management screen - distinct from {@link #create},
-     * which is the pre-existing self-service platform-level flow. Callers
-     * must be an OWNER/ADMIN of {@code organizationId}, checked via
-     * organization-service's own OrgRole model over gRPC (see
-     * OrganizationAccessGrpcService) rather than duplicated here.
-     *
-     * @return the raw key - see {@link #create}'s javadoc for why this is the only time it's available.
-     */
     @Transactional
     public String createProjectKey(String ownerEmail, UUID organizationId, UUID projectId, String environment,
                                     ApiKeyType keyType, String name, String scopes) {
@@ -134,15 +121,17 @@ public class ApiKeyService {
                 .scopes(scopes == null || scopes.isBlank() ? null : scopes)
                 .build());
 
+        log.info("Project API key created: keyId={} type={} prefix={} org={} project={} env={} by={}",
+                apiKey.getId(), keyType, apiKey.getKeyPrefix(), organizationId, projectId, environment, owner.getId());
         domainEventPublisher.publish(ApiKeyCreatedEvent.now(owner.getId(), owner.getEmail(), apiKey.getId(), apiKey.getKeyPrefix(), name));
         return rawKey;
     }
 
-    /** @return the decrypted raw key - see ApiKey's javadoc for the trade-off this represents. */
     public String revealProjectKey(String callerEmail, UUID organizationId, UUID projectId, UUID apiKeyId) {
         requireManagerAccess(organizationId, callerEmail);
         ApiKey apiKey = apiKeyRepository.findByIdAndProjectId(apiKeyId, projectId)
                 .orElseThrow(() -> new ApiException("No API key with id " + apiKeyId + " for this project", HttpStatus.NOT_FOUND));
+        log.info("Project API key revealed: keyId={} project={} org={}", apiKeyId, projectId, organizationId);
         return decryptOrThrow(apiKey);
     }
 
@@ -158,21 +147,10 @@ public class ApiKeyService {
                 .orElseThrow(() -> new ApiException("No API key with id " + apiKeyId + " for this project", HttpStatus.NOT_FOUND));
         apiKey.setRevoked(true);
         apiKeyRepository.save(apiKey);
+        log.info("Project API key revoked: keyId={} project={} org={}", apiKeyId, projectId, organizationId);
         domainEventPublisher.publish(ApiKeyRevokedEvent.now(apiKey.getUser().getId(), callerEmail, apiKeyId));
     }
 
-    /**
-     * Idempotent PUBLIC key provisioning for SDK config generation
-     * (architecture design §9), called by organization-service via
-     * ApiKeyProvisioningGrpcService rather than the REST endpoints above,
-     * since the caller there is another service, not a browser request. If
-     * an active PUBLIC key already exists for this project+environment, it
-     * is returned as "not newly created" with no raw key attached - this
-     * method's caller only ever needs "does one exist", not its value;
-     * fetch it via {@link #revealProjectKey} separately if actually needed.
-     *
-     * @return {@code [true, rawKey, prefix]} if a new key was minted, or {@code [false, "", prefix]} if one already existed
-     */
     @Transactional
     public ProjectPublicKeyResult getOrCreateProjectPublicKey(String requestedByEmail, UUID organizationId, UUID projectId, String environment) {
         requireManagerAccess(organizationId, requestedByEmail);
@@ -183,6 +161,7 @@ public class ApiKeyService {
                 .findFirst();
 
         if (existing.isPresent()) {
+            log.debug("Reusing existing PUBLIC key: project={} env={} prefix={}", projectId, environment, existing.get().getKeyPrefix());
             return new ProjectPublicKeyResult(false, "", existing.get().getKeyPrefix());
         }
 
@@ -200,6 +179,7 @@ public class ApiKeyService {
                 .keyType(ApiKeyType.PUBLIC)
                 .build());
 
+        log.info("PUBLIC SDK key minted: keyId={} prefix={} project={} env={}", apiKey.getId(), apiKey.getKeyPrefix(), projectId, environment);
         domainEventPublisher.publish(ApiKeyCreatedEvent.now(owner.getId(), owner.getEmail(), apiKey.getId(), apiKey.getKeyPrefix(), apiKey.getName()));
         return new ProjectPublicKeyResult(true, rawKey, apiKey.getKeyPrefix());
     }
@@ -214,9 +194,11 @@ public class ApiKeyService {
                     .setUserEmail(callerEmail)
                     .build());
         } catch (StatusRuntimeException e) {
+            log.error("organization-service checkManagerAccess failed: org={} status={}", organizationId, e.getStatus(), e);
             throw new ApiException("Could not verify organization access (organization-service unreachable)", HttpStatus.SERVICE_UNAVAILABLE);
         }
         if (!response.getAuthorized()) {
+            log.warn("Manager access denied: org={} user={}", organizationId, LogMasker.email(callerEmail));
             throw new ApiException("Requires OWNER or ADMIN role in this organization", HttpStatus.FORBIDDEN);
         }
     }
@@ -229,35 +211,21 @@ public class ApiKeyService {
                     .setProjectId(projectId.toString())
                     .build());
         } catch (StatusRuntimeException e) {
+            log.error("organization-service checkProjectExists failed: org={} project={} status={}", organizationId, projectId, e.getStatus(), e);
             throw new ApiException("Could not verify project (organization-service unreachable)", HttpStatus.SERVICE_UNAVAILABLE);
         }
         if (!response.getExists()) {
+            log.warn("Project not found: org={} project={}", organizationId, projectId);
             throw new ApiException("No project " + projectId + " in organization " + organizationId, HttpStatus.NOT_FOUND);
         }
     }
 
-    // ---------- Shared ----------
-
-    /**
-     * Validates a raw key presented in an X-API-Key header and, if valid,
-     * updates its lastUsedAt timestamp. Returns empty for anything wrong -
-     * unknown hash, revoked - so ApiKeyAuthFilter can treat every failure
-     * mode the same way (fall through unauthenticated). Recognizes all
-     * three prefixes (platform {@code ak_}, project-scoped {@code pk_}/
-     * {@code sk_}) - the caller (ApiKeyAuthFilter) doesn't need to know
-     * which kind it got; the resolved ApiKey row carries that.
-     */
     @Transactional
     public Optional<ApiKey> validateAndTouch(String rawKey) {
         if (rawKey == null || (!rawKey.startsWith(PLATFORM_KEY_PREFIX)
                 && !rawKey.startsWith(PUBLIC_KEY_PREFIX) && !rawKey.startsWith(SECRET_KEY_PREFIX))) {
             return Optional.empty();
         }
-        // findByKeyHashFetchUser, not findByKeyHash: the caller
-        // (ApiKeyProvisioningGrpcService.validateApiKey) reads
-        // apiKey.getUser() after this transaction has already closed - see
-        // that query method's javadoc for why the plain lazy lookup breaks
-        // there with a LazyInitializationException.
         return apiKeyRepository.findByKeyHashFetchUser(sha256Hex(rawKey))
                 .filter(k -> !k.isRevoked())
                 .map(k -> {
@@ -275,7 +243,10 @@ public class ApiKeyService {
 
     private User requireUser(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ApiException("No user found with email: " + email, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("User lookup failed: email={}", LogMasker.email(email));
+                    return new ApiException("No user found with email: " + email, HttpStatus.NOT_FOUND);
+                });
     }
 
     private String sha256Hex(String value) {
@@ -287,7 +258,6 @@ public class ApiKeyService {
             }
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
-            // SHA-256 is guaranteed available on every JVM - this can't actually happen.
             throw new IllegalStateException(e);
         }
     }

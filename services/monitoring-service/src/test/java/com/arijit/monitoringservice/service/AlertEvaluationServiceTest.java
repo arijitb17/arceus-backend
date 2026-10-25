@@ -32,7 +32,6 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AlertEvaluationServiceTest {
-
     @Mock
     private AlertRuleRepository alertRuleRepository;
     @Mock

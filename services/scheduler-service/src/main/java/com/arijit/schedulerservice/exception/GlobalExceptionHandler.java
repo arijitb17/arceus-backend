@@ -16,7 +16,6 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
     private static final String MDC_CORRELATION_ID_KEY = "correlationId";
 
     @ExceptionHandler(ApiException.class)

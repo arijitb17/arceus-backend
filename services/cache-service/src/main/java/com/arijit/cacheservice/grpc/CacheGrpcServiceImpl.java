@@ -23,19 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * gRPC face of cache-service. Calls straight into {@link CacheStoreService},
- * the same engine {@code CacheController} uses, so REST and gRPC callers
- * get identical behavior. All {@code value} fields on the wire are plain
- * strings (see cache.proto) - JSON text, plain text, or Base64, per
- * {@code serialization} - which this class converts to/from the richer
- * {@code Object} values {@link CacheStoreService} works with.
- */
 @Slf4j
 @GrpcService
 @RequiredArgsConstructor
 public class CacheGrpcServiceImpl extends CacheGrpcServiceGrpc.CacheGrpcServiceImplBase {
-
     private final CacheStoreService cacheStoreService;
     private final ObjectMapper objectMapper;
 
@@ -202,8 +193,6 @@ public class CacheGrpcServiceImpl extends CacheGrpcServiceGrpc.CacheGrpcServiceI
         responseObserver.onCompleted();
     }
 
-    // ------------------------------------------------------------------
-
     private CacheRequest toCacheRequest(PutRequest request) {
         SerializationFormat serialization = request.getSerialization().isBlank()
                 ? SerializationFormat.JSON
@@ -223,9 +212,6 @@ public class CacheGrpcServiceImpl extends CacheGrpcServiceGrpc.CacheGrpcServiceI
                 request.getCompress(), ttlPolicy, ttlSeconds, absoluteExpireAt, cachePolicy);
     }
 
-    /** Wire value is always a string; for JSON that string is JSON text, so parse it into a
-     *  generic Object (Map/List/scalar) before handing it to CacheStoreService, which otherwise
-     *  would re-encode a raw String as a JSON *string literal* instead of preserving its structure. */
     private Object decodeWireValue(String wireValue, SerializationFormat serialization) {
         if (serialization != SerializationFormat.JSON) {
             return wireValue;
@@ -250,6 +236,11 @@ public class CacheGrpcServiceImpl extends CacheGrpcServiceGrpc.CacheGrpcServiceI
 
     private <T> void fail(StreamObserver<T> responseObserver, ApiException e) {
         Status status = e.getStatus().is4xxClientError() ? Status.INVALID_ARGUMENT : Status.INTERNAL;
+        if (status == Status.INTERNAL) {
+            log.error("Cache gRPC call failed: {}", e.getMessage(), e);
+        } else {
+            log.debug("Cache gRPC call rejected: {}", e.getMessage());
+        }
         responseObserver.onError(status.withDescription(e.getMessage()).asRuntimeException());
     }
 }

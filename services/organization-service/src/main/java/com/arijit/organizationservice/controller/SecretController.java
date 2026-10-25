@@ -14,12 +14,10 @@ import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
-/** See Secret's javadoc - no endpoint here ever returns a decrypted value. */
 @RestController
 @RequestMapping("/organizations/{organizationId}/projects/{projectId}/environments/{environment}/secrets")
 @RequiredArgsConstructor
 public class SecretController {
-
     private final SecretService secretService;
 
     @GetMapping

@@ -13,28 +13,10 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * One publish() per job lifecycle transition, reusing the exact same
- * {@link EventEnvelope} shape auth-service's DomainEventPublisher uses -
- * see ArceusEventsTopology's javadoc for why this makes audit-service and
- * every other subscriber able to consume job events with zero code changes
- * on their end. Unlike auth-service's publisher, there's deliberately no
- * generic {@code publish(DomainEvent)} here: job events aren't a form
- * bound to an HTTP request (a job fires from the poller, not a browser
- * click), so there's no user/IP/User-Agent to enrich the envelope with -
- * just jobId/jobName/serviceName/status, which is all any subscriber
- * actually needs.
- * <p>
- * Same failure posture as auth-service's publisher: a publish failure is
- * logged and swallowed. A job's own state transition (already committed to
- * Postgres by the time this is called) must never be rolled back or
- * retried just because this best-effort notification couldn't be sent.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JobLifecycleEventPublisher {
-
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${spring.application.name}")

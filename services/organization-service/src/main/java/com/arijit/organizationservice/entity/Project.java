@@ -10,14 +10,6 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * The isolated tenant unit (architecture design §3). Everything module
- * enablement, secrets, API keys, deployments, usage, and logs scope to is
- * keyed by this id + an {@link EnvironmentType}. This service owns the
- * project's identity and configuration; it does not own the actual
- * resources modules provision (those live in each owning service, keyed
- * back to this id - see ModuleEnablement's javadoc).
- */
 @Entity
 @Table(name = "projects", indexes = {
         @Index(name = "idx_project_organization", columnList = "organizationId"),
@@ -29,7 +21,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Project {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -40,7 +31,6 @@ public class Project {
     @Column(nullable = false, length = 150)
     private String name;
 
-    /** Unique within the organization (not platform-wide, unlike Organization.slug). Used in generated SDK config. */
     @Column(nullable = false, length = 150)
     private String slug;
 

@@ -6,6 +6,7 @@ import com.arijit.arceus.grpc.gateway.HttpResponseMessage;
 import com.arijit.arceus.grpc.gateway.OrganizationGatewayServiceGrpc;
 import com.arijit.arceus.grpc.gateway.PingRequest;
 import com.arijit.arceus.grpc.gateway.PingResponse;
+import lombok.extern.slf4j.Slf4j;
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
@@ -20,16 +21,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
-/**
- * gRPC face of organization-service for the Arceus Gateway. Identical
- * shape to AuditGatewayGrpcService/every other XxxGatewayGrpcService in the
- * platform - forwards to this service's own REST controllers over a
- * loopback HTTP call rather than duplicating request/response shapes as
- * dedicated RPCs. See gateway.proto's OrganizationGatewayService.
- */
+@Slf4j
 @GrpcService
 public class OrganizationGatewayGrpcService extends OrganizationGatewayServiceGrpc.OrganizationGatewayServiceImplBase {
-
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${server.port}")
@@ -41,6 +35,7 @@ public class OrganizationGatewayGrpcService extends OrganizationGatewayServiceGr
             responseObserver.onNext(doForward(request));
             responseObserver.onCompleted();
         } catch (RestClientResponseException ex) {
+            log.debug("Forwarded {} {} returned status {}", request.getMethod(), request.getPath(), ex.getStatusCode().value());
             responseObserver.onNext(HttpResponseMessage.newBuilder()
                     .setStatus(ex.getStatusCode().value())
                     .addAllHeaders(toProtoHeaders(ex.getResponseHeaders()))
@@ -48,6 +43,7 @@ public class OrganizationGatewayGrpcService extends OrganizationGatewayServiceGr
                     .build());
             responseObserver.onCompleted();
         } catch (Exception ex) {
+            log.error("Failed to forward {} {} to local API", request.getMethod(), request.getPath(), ex);
             responseObserver.onNext(HttpResponseMessage.newBuilder()
                     .setStatus(500)
                     .setBody(ByteString.copyFromUtf8(

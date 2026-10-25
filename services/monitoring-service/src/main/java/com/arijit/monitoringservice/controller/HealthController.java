@@ -10,12 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** GET /health - monitoring-service's own health, per the platform-wide convention every service follows. */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Health", description = "monitoring-service's own health (not platform health - see /services and /dashboard for that)")
 public class HealthController {
-
     private final HealthService healthService;
 
     @GetMapping("/health")

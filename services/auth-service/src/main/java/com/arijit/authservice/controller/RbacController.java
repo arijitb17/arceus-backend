@@ -15,19 +15,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-// Answers gap #2 from the backend-gaps doc ("no RBAC/permission model
-// beyond two hardcoded roles"). See RbacService's javadoc for the scoping
-// decision: this is an admin-editable permission catalog + per-role
-// assignment, not a rewrite of how Spring Security itself authorizes
-// requests.
 @RestController
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class RbacController {
-
     private final RbacService rbacService;
-
-    // ---------- Permissions ----------
 
     @GetMapping("/api/auth/permissions")
     @Operation(summary = "List/search permissions, optionally filtered by category (paginated)")
@@ -66,11 +58,6 @@ public class RbacController {
         return ResponseEntity.noContent().build();
     }
 
-    // ---------- Roles ----------
-    // Only ROLE_USER/ROLE_ADMIN exist (see the Role enum) - there's no
-    // "create a role" endpoint because a role that isn't wired into Spring
-    // Security wouldn't do anything. What IS editable per role is its
-    // display name/description and which permissions it carries.
 
     @GetMapping("/api/auth/roles")
     @Operation(summary = "List every system role and its assigned permissions")

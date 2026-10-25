@@ -9,18 +9,9 @@ import org.springframework.web.client.RestClient;
 import java.net.http.HttpClient;
 import java.time.Duration;
 
-/**
- * One shared {@link RestClient} every collector (ServiceHealthCollector,
- * ServiceMetricsCollector) uses to poll every monitored service's Actuator
- * endpoints. A short, explicit connect/read timeout is the whole point -
- * a monitored service that's hung (not just down) must never be allowed to
- * stall the poller past one polling interval, or one bad service would
- * starve every other service's health/metric collection too.
- */
 @Configuration
 @RequiredArgsConstructor
 public class RestClientConfig {
-
     private final MonitoringProperties properties;
 
     @Bean

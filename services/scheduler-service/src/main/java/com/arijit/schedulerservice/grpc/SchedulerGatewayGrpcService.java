@@ -6,6 +6,7 @@ import com.arijit.arceus.grpc.gateway.HttpResponseMessage;
 import com.arijit.arceus.grpc.gateway.PingRequest;
 import com.arijit.arceus.grpc.gateway.PingResponse;
 import com.arijit.arceus.grpc.gateway.SchedulerGatewayServiceGrpc;
+import lombok.extern.slf4j.Slf4j;
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
@@ -20,15 +21,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
-/**
- * gRPC face of scheduler-service for the Arceus Gateway. See
- * AuthGatewayGrpcService in auth-service for the rationale: this forwards
- * to JobController over a loopback HTTP call instead of duplicating its
- * request/response shapes as dedicated RPCs.
- */
+@Slf4j
 @GrpcService
 public class SchedulerGatewayGrpcService extends SchedulerGatewayServiceGrpc.SchedulerGatewayServiceImplBase {
-
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${server.port}")
@@ -40,6 +35,7 @@ public class SchedulerGatewayGrpcService extends SchedulerGatewayServiceGrpc.Sch
             responseObserver.onNext(doForward(request));
             responseObserver.onCompleted();
         } catch (RestClientResponseException ex) {
+            log.debug("Forwarded {} {} returned status {}", request.getMethod(), request.getPath(), ex.getStatusCode().value());
             responseObserver.onNext(HttpResponseMessage.newBuilder()
                     .setStatus(ex.getStatusCode().value())
                     .addAllHeaders(toProtoHeaders(ex.getResponseHeaders()))
@@ -47,6 +43,7 @@ public class SchedulerGatewayGrpcService extends SchedulerGatewayServiceGrpc.Sch
                     .build());
             responseObserver.onCompleted();
         } catch (Exception ex) {
+            log.error("Failed to forward {} {} to local API", request.getMethod(), request.getPath(), ex);
             responseObserver.onNext(HttpResponseMessage.newBuilder()
                     .setStatus(500)
                     .setBody(ByteString.copyFromUtf8(

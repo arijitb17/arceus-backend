@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class JobValidationServiceTest {
-
     private final JobValidationService validator = new JobValidationService();
 
     private CreateJobRequest request(JobTriggerType triggerType, String cron, Long delayMs, Long fixedRateMs, Long fixedDelayMs,

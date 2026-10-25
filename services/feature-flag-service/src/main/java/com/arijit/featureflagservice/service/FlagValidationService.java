@@ -10,16 +10,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-/**
- * Everything Bean Validation on the DTOs alone can't express: cross-field
- * rules (targetType vs environment), the "USER/ROLE/TENANT are reserved"
- * gate, and scheduling sanity checks. Kept separate from FlagService so
- * it's trivially unit-testable without a Spring context or a database -
- * same split as scheduler-service's JobValidationService.
- */
 @Service
 public class FlagValidationService {
-
     public void validateCreate(CreateFlagRequest request) {
         TargetType targetType = request.targetType() != null ? request.targetType() : TargetType.ENVIRONMENT;
         requireImplementedTargetType(targetType);

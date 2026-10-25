@@ -10,23 +10,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * The Gateway's "evaluate feature flags before executing configurable
- * functionality" integration point - a per-route kill-switch. Each Route
- * in ProxyController has a flag key ({@code gateway.route.<name>.enabled});
- * when a flag with that key exists and is explicitly disabled, the Gateway
- * stops forwarding to that downstream service without needing a
- * redeploy - see RouteFlagFilter for where this is checked.
- * <p>
- * Deliberately fails OPEN (treats "allowed" as the default) on any
- * feature-flag-service error, same reasoning as RateLimitGatewayClient:
- * an outage in an auxiliary control-plane service must never itself take
- * down every route through the Gateway.
+ * Deliberately fails OPEN (treats "allowed" as the default) on any feature-flag-service error, same
+ * reasoning as RateLimitGatewayClient: an outage in an auxiliary control-plane service must never
+ * itself take down every route through the Gateway.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class RouteFlagGatewayClient {
-
     private final FeatureFlagGrpcServiceGrpc.FeatureFlagGrpcServiceBlockingStub featureFlagStub;
 
     @Value("${arceus.gateway.feature-flags.environment:PRODUCTION}")
@@ -41,8 +32,8 @@ public class RouteFlagGatewayClient {
                     .setBucketKey(routeName)
                     .setDefaultValue("true")
                     .build());
-            // Not found = no operator has ever configured a kill-switch for
-            // this route, which must mean "on", not "off".
+            // Not found = no operator has ever configured a kill-switch for this route, which must
+            // mean "on", not "off".
             return !response.getFound() || response.getEnabled();
         } catch (StatusRuntimeException e) {
             log.warn("Could not reach feature-flag-service to evaluate '{}' - allowing the request through: {}", flagKey, e.getStatus());

@@ -10,18 +10,14 @@ import org.springframework.stereotype.Service;
 import com.arijit.featureflagservice.repository.FeatureFlagRepository;
 
 /**
- * GET /health's backing service, per the spec's "Expose: Service Status,
- * Database Status, Cache Status, RabbitMQ Status". Cache being DOWN never
- * takes the overall status below DEGRADED (see FlagCacheService - a
- * missing cache just means slower reads from Postgres), whereas the
- * database or RabbitMQ being DOWN means this service can no longer do
- * its actual job and is reported DOWN overall.
+ * Cache being DOWN never takes the overall status below DEGRADED (see FlagCacheService - a missing
+ * cache just means slower reads from Postgres), whereas the database or RabbitMQ being DOWN means
+ * this service can no longer do its actual job and is reported DOWN overall.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class HealthService {
-
     private final FeatureFlagRepository flagRepository;
     private final ConnectionFactory rabbitConnectionFactory;
     private final StringRedisTemplate redisTemplate;

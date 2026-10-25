@@ -14,7 +14,6 @@ import java.util.Properties;
 @Component
 @RequiredArgsConstructor
 public class HealthService {
-
     private final RedisConnectionFactory redisConnectionFactory;
 
     public HealthResponse check() {
@@ -49,6 +48,7 @@ public class HealthService {
             try (RedisConnection probe = redisConnectionFactory.getConnection()) {
                 return probe != null ? "UP" : "DOWN";
             } catch (Exception e) {
+                log.warn("Redis connection pool probe failed: {}", e.toString());
                 return "DOWN";
             }
         }

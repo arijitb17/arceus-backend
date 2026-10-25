@@ -16,15 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Alert Rule Management - the admin-only mutation half of the /alerts
- * surface (see SecurityConfig / AlertController's {@code @PreAuthorize}).
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AlertRuleService {
-
     private final AlertRuleRepository alertRuleRepository;
 
     public PagedResponse<AlertRuleResponse> list(Pageable pageable) {

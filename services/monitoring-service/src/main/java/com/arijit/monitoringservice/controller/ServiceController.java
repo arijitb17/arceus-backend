@@ -10,12 +10,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-/** GET /services and GET /services/{service} - Service Health Monitoring + Service Status History. */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Services", description = "Platform-wide and per-service health status")
 public class ServiceController {
-
     private final PlatformHealthService platformHealthService;
 
     @GetMapping("/services")

@@ -5,18 +5,12 @@ grpc:
   server:
     port: ${AUTH_GRPC_PORT:9081}
   client:
-    # Used by scheduler.SessionCleanupJobRegistrar to register the
-    # recurring expired-session-cleanup job.
     scheduler:
       address: static://${SCHEDULER_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
       negotiation-type: plaintext
-    # Used by featureflag.FeatureFlagGateService to gate configurable auth
-    # actions (e.g. registration) behind a flag.
     feature-flag:
       address: static://${FEATURE_FLAG_GRPC_HOST:localhost}:${FEATURE_FLAG_GRPC_PORT:9087}
       negotiation-type: plaintext
-    # Used by ApiKeyService#createProjectKey to authorize project-scoped
-    # API key issuance against organization-service's own OrgRole model.
     organization:
       address: static://${ORGANIZATION_GRPC_HOST:localhost}:${ORGANIZATION_GRPC_PORT:9090}
       negotiation-type: plaintext
@@ -24,11 +18,6 @@ grpc:
 spring:
   autoconfigure:
     exclude:
-      # net.devh's grpc-server starter auto-wires gRPC-level authentication
-      # the moment Spring Security is on the classpath, which this service
-      # doesn't use (its Spring Security setup is for the REST/JWT layer
-      # only). Without this, startup fails looking for a
-      # GrpcAuthenticationReader bean we have no reason to define.
       - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
 
   application:
@@ -42,8 +31,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # auto-creates/updates tables from your entities - fine for dev,
-      # switch to 'validate' + a migration tool (Flyway) before production
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -93,65 +81,32 @@ spring:
             enable: true
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration-ms: 900000        # 15 minutes
-  refresh-token-expiration-ms: 604800000    # 7 days
+  access-token-expiration-ms: 900000
+  refresh-token-expiration-ms: 604800000
 
 arceus:
   auth:
     api-key:
-      # AES-256 key, 32 raw bytes base64-encoded, used by ApiKeyCryptoService
-      # to store every API key in a form that CAN be decrypted again later -
-      # see that class's javadoc for what this trades away versus hash-only
-      # storage. Generate a real one per environment with:
-      #   openssl rand -base64 32
-      # The committed default below is an obviously-fake all-zero key for
-      # local dev only - always override this in anything beyond your own
-      # machine.
       encryption-key: ${AUTH_API_KEY_ENCRYPTION_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
 
 app:
   super-admin:
-    # Opt-in: leave both unset (the default) and SuperAdminBootstrap does
-    # nothing. Set both to seed exactly one ROLE_ADMIN account on first
-    # startup - see SuperAdminBootstrap's javadoc for why it's safe to
-    # leave these set across restarts (it never touches an existing account).
     email: ${SUPER_ADMIN_EMAIL:}
     password: ${SUPER_ADMIN_PASSWORD:}
     name: ${SUPER_ADMIN_NAME:Super Admin}
   oauth2:
-    # Where the browser lands after a successful Google/GitHub login, with
-    # ?code=<one-time-code> appended. The frontend POSTs that code to
-    # /api/auth/oauth2/exchange to get real tokens back in a response body -
-    # tokens are never put directly in this redirect URL (browser history +
-    # server access logs would otherwise capture them).
     redirect-uri: ${OAUTH2_REDIRECT_URI}
     exchange-code-expiration-seconds: ${OAUTH2_EXCHANGE_CODE_EXPIRATION_SECONDS:60}
   cors:
-    # Exact origins allowed to call this service directly with credentials
-    # (relevant mainly for the OAuth2 redirect flow, which isn't proxied
-    # through the Gateway). Comma-separated; empty means nothing is allowed.
     allowed-origins: ${AUTH_CORS_ALLOWED_ORIGINS:}
   internal:
-    # Shared secret scheduler-service's HTTP_CALLBACK executor presents as
-    # ?token= when it POSTs to /internal/auth/sessions/clean-expired - see
-    # SessionCleanupCallbackController / SessionCleanupJobRegistrar.
     api-token: ${AUTH_INTERNAL_API_TOKEN:changeme-auth-internal-token}
-    # Must be reachable from scheduler-service's pod/host, not just this service's own network.
     callback-base-url: ${AUTH_CALLBACK_BASE_URL:http://localhost:8081}
   scheduling:
-    # "Clean expired sessions" scheduled job - how often scheduler-service
-    # fires the sweep. See scheduler.SessionCleanupJobRegistrar.
-    session-cleanup-interval-ms: ${AUTH_SESSION_CLEANUP_INTERVAL_MS:3600000}   # 1 hour
-    # x-internal-token this service must present when it calls
-    # scheduler-service's gRPC API - see config.GrpcClientConfig. Must
-    # match scheduler-service's own arceus.scheduler.internal.api-token exactly.
+    session-cleanup-interval-ms: ${AUTH_SESSION_CLEANUP_INTERVAL_MS:3600000}
     scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
   feature-flags:
-    # See featureflag.FeatureFlagGateService.
     environment: ${AUTH_FEATURE_FLAG_ENVIRONMENT:PRODUCTION}
-    # x-internal-token this service must present when it calls
-    # feature-flag-service's gRPC API. Must match feature-flag-service's
-    # own arceus.feature-flag.internal.api-token exactly.
     token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}
 otp:
   expiration-minutes: 5
@@ -170,10 +125,6 @@ management:
   endpoints:
     web:
       exposure:
-        # 'metrics' + show-details below are what let monitoring-service's
-        # ServiceHealthCollector/ServiceMetricsCollector see this service's
-        # db/redis/rabbit component breakdown and JVM/CPU/request metrics -
-        # see monitoring-service's application.yml for the polling side.
         include: health,info,metrics
   endpoint:
     health:

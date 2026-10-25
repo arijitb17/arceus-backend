@@ -10,7 +10,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ServiceMetricSnapshotRepository extends JpaRepository<ServiceMetricSnapshot, UUID> {
-
     Optional<ServiceMetricSnapshot> findTopByServiceNameOrderByCapturedAtDesc(String serviceName);
 
     Page<ServiceMetricSnapshot> findByServiceNameOrderByCapturedAtDesc(String serviceName, Pageable pageable);

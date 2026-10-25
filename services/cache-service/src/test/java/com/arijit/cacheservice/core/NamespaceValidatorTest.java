@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class NamespaceValidatorTest {
-
     private CacheProperties propertiesWith(boolean allowUnlisted) {
         return new CacheProperties(
                 new CacheProperties.Pool(16, 8, 0, 2000),

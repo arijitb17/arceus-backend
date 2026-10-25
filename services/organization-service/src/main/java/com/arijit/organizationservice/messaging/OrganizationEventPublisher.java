@@ -17,20 +17,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Same shape and same failure posture as DeploymentEventPublisher: a
- * publish failure is logged and swallowed, never allowed to roll back a
- * state change already committed to Postgres. Two of these events -
- * MODULE_ENABLE_REQUESTED and MODULE_DISABLE_REQUESTED - aren't just
- * observed by audit-service's catch-all binding; deployment-service binds
- * its own queue to them specifically, since those are the two that trigger
- * its provisioning pipeline (architecture design §4).
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class OrganizationEventPublisher {
-
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${spring.application.name}")

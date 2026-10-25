@@ -6,6 +6,7 @@ import com.arijit.notificationservice.notification.EmailService;
 import com.arijit.notificationservice.sms.PhoneOtpSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.arijit.arceus.events.logging.LogMasker;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OtpConsumer {
-
     private final EmailService emailService;
     private final PhoneOtpSender phoneOtpSender;
     private final IdempotencyGuard idempotencyGuard;
@@ -22,16 +22,14 @@ public class OtpConsumer {
     public void handle(OtpNotificationMessage message) {
         if (idempotencyGuard.alreadyProcessed(message.messageId())) {
             log.info("Skipping redelivered OTP message {} ({} to {}) - already sent",
-                    message.messageId(), message.channel(), message.recipient());
+                    message.messageId(), message.channel(), LogMasker.recipient(message.recipient()));
             return;
         }
 
-        // Deliberately NOT catching a broad Exception here anymore: a
-        // transient failure (SMTP/SMS provider down) should be retried
-        // with backoff (spring.rabbitmq.listener.simple.retry) and, once
-        // exhausted, dead-lettered - not silently logged and dropped,
-        // which used to mean the user's OTP just never arrived with no
-        // way to notice.
+        // Deliberately NOT catching a broad Exception here anymore: a transient failure (SMTP/SMS
+        // provider down) should be retried with backoff (spring.rabbitmq.listener.simple.retry)
+        // and, once exhausted, dead-lettered - not silently logged and dropped, which used to mean
+        // the user's OTP just never arrived with no way to notice.
         switch (message.channel()) {
             case EMAIL -> emailService.sendOtpEmail(message.recipient(), message.otpCode(), purposeLabel(message));
             case SMS -> phoneOtpSender.sendOtp(message.recipient());

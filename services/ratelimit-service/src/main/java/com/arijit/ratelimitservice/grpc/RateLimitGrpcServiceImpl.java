@@ -11,20 +11,13 @@ import com.arijit.ratelimitservice.service.SlidingWindowLimiter;
 import com.arijit.ratelimitservice.service.TokenBucketLimiter;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
 
-/**
- * gRPC face of ratelimit-service. Unlike the Auth/Notification/Audit
- * gateway services, this doesn't forward over loopback HTTP - it calls
- * SlidingWindowLimiter/TokenBucketLimiter directly, the same beans
- * RateLimitController uses, since this is the one call the Gateway makes
- * on every protected request and an extra HTTP hop here would be pure
- * overhead.
- */
+@Slf4j
 @GrpcService
 @RequiredArgsConstructor
 public class RateLimitGrpcServiceImpl extends RateLimitGrpcServiceGrpc.RateLimitGrpcServiceImplBase {
-
     private final SlidingWindowLimiter slidingWindowLimiter;
     private final TokenBucketLimiter tokenBucketLimiter;
 
@@ -49,6 +42,9 @@ public class RateLimitGrpcServiceImpl extends RateLimitGrpcServiceGrpc.RateLimit
                 }
             };
 
+            if (!result.allowed()) {
+                log.debug("Rate limit denied: algorithm={} retryAfter={}", request.getAlgorithm(), result.retryAfter());
+            }
             responseObserver.onNext(RateLimitCheckResponse.newBuilder()
                     .setAllowed(result.allowed())
                     .setRemainingRequests(result.remainingRequests())
@@ -56,6 +52,7 @@ public class RateLimitGrpcServiceImpl extends RateLimitGrpcServiceGrpc.RateLimit
                     .build());
             responseObserver.onCompleted();
         } catch (ApiException ex) {
+            log.warn("Rate limit check rejected as invalid: {}", ex.getMessage());
             responseObserver.onError(io.grpc.Status.INVALID_ARGUMENT
                     .withDescription(ex.getMessage())
                     .asRuntimeException());

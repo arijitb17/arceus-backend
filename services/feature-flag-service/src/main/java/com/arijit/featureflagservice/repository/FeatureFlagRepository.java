@@ -13,7 +13,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface FeatureFlagRepository extends JpaRepository<FeatureFlag, UUID> {
-
     Optional<FeatureFlag> findByFlagKeyAndEnvironment(String flagKey, Environment environment);
 
     List<FeatureFlag> findByFlagKey(String flagKey);
@@ -24,7 +23,6 @@ public interface FeatureFlagRepository extends JpaRepository<FeatureFlag, UUID> 
 
     Page<FeatureFlag> findByEnvironmentAndStatus(Environment environment, FlagStatus status, Pageable pageable);
 
-    /** Flags with a still-pending scheduled activation/deactivation past due - safety-net sweep, see FlagScheduleSweepService. */
     List<FeatureFlag> findByActivateAtIsNotNullAndActivateAtLessThanEqualAndStatus(Instant now, FlagStatus status);
 
     List<FeatureFlag> findByDeactivateAtIsNotNullAndDeactivateAtLessThanEqualAndStatus(Instant now, FlagStatus status);

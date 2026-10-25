@@ -9,22 +9,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.Properties;
 
-/**
- * Hit/miss/eviction counters are kept as plain Redis INCR counters (not
- * in-process) so stats stay accurate and shared across every cache-service
- * instance behind a load balancer, and survive individual instance
- * restarts. {@code totalKeys}/{@code memoryUsageBytes}/{@code expiredKeys}
- * come straight from Redis's own DBSIZE and INFO output - global to the
- * Redis logical database this service is configured against, not filtered
- * to keys this service wrote, since Redis doesn't track that distinction
- * for us without Pub/Sub keyspace notifications (deliberately out of scope
- * for now).
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CacheStatsService {
-
     private static final String HITS_KEY = "__arceus_cache_stats:hits";
     private static final String MISSES_KEY = "__arceus_cache_stats:misses";
     private static final String EVICTIONS_KEY = "__arceus_cache_stats:evictions";

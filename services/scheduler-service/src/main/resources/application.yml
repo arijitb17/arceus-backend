@@ -5,7 +5,6 @@ grpc:
   server:
     port: ${SCHEDULER_GRPC_PORT:9086}
   client:
-    # Used by featureflag.JobFlagGateService to gate job execution per calling service.
     feature-flag:
       address: static://${FEATURE_FLAG_GRPC_HOST:localhost}:${FEATURE_FLAG_GRPC_PORT:9087}
       negotiation-type: plaintext
@@ -13,9 +12,6 @@ grpc:
 spring:
   autoconfigure:
     exclude:
-      # Spring Security here is for the REST layer only, not gRPC - gRPC
-      # auth is handled by GrpcAuthInterceptor instead (excluded so Spring
-      # Security's own gRPC auto-config doesn't also try to secure it).
       - net.devh.boot.grpc.server.autoconfigure.GrpcServerSecurityAutoConfiguration
 
   application:
@@ -29,7 +25,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update   # fine for pre-release dev; move to Flyway + validate before v1.0.0
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -50,9 +46,6 @@ spring:
           multiplier: 2.0
           max-interval: 30000
           max-attempts: 5
-        # After retry is exhausted, reject without requeueing so the
-        # message dead-letters (see RabbitMQConfig's DLQ wiring) instead of
-        # looping through this same consumer forever.
         default-requeue-rejected: false
 
 springdoc:
@@ -63,85 +56,47 @@ management:
   endpoints:
     web:
       exposure:
-        # 'metrics' + show-details below are what let monitoring-service's
-        # ServiceHealthCollector/ServiceMetricsCollector see this service's
-        # db/redis/rabbit component breakdown and JVM/CPU/request metrics.
         include: health,info,metrics
   endpoint:
     health:
       show-details: always
 
-# --- Arceus Scheduler Service specific configuration --------------------
 arceus:
   scheduler:
-    # See featureflag.JobFlagGateService.
     feature-flags:
       environment: ${SCHEDULER_FEATURE_FLAG_ENVIRONMENT:PRODUCTION}
-    # x-internal-token this service must present when it calls
-    # feature-flag-service's gRPC API - see config.GrpcClientConfig. Must
-    # match feature-flag-service's own arceus.feature-flag.internal.api-token exactly.
     grpc-clients:
       feature-flag-token: ${FEATURE_FLAG_INTERNAL_API_TOKEN:changeme-feature-flag-internal-token}
     poll:
-      # How often the single poll loop (JobPollerService) checks for due
-      # jobs. Lower = lower latency between "due" and "actually dispatched",
-      # at the cost of more frequent (cheap, indexed) queries.
       interval-ms: ${SCHEDULER_POLL_INTERVAL_MS:1000}
-      # Cap on how many due jobs one poll tick claims - keeps a sudden
-      # backlog from overwhelming the worker pool in a single tick.
       batch-size: ${SCHEDULER_POLL_BATCH_SIZE:50}
-      # How often JobExpiryService sweeps for never-fired jobs whose
-      # expiresAt has simply passed - a much coarser-grained concern than
-      # the poll loop itself.
       expiry-interval-ms: ${SCHEDULER_EXPIRY_INTERVAL_MS:60000}
 
     worker:
-      # The bounded pool actual job dispatch (HTTP callback / RabbitMQ
-      # publish) runs on - see AsyncConfig.
       core-pool-size: ${SCHEDULER_WORKER_CORE_POOL_SIZE:10}
       max-pool-size: ${SCHEDULER_WORKER_MAX_POOL_SIZE:50}
       queue-capacity: ${SCHEDULER_WORKER_QUEUE_CAPACITY:500}
 
     retry:
-      # Platform-wide defaults a job falls back to when it doesn't specify
-      # its own retry policy at creation time - every one of these is
-      # still overridable per job.
       max-retries: ${SCHEDULER_DEFAULT_MAX_RETRIES:3}
       retry-delay-ms: ${SCHEDULER_DEFAULT_RETRY_DELAY_MS:30000}
       backoff-multiplier: ${SCHEDULER_DEFAULT_BACKOFF_MULTIPLIER:2.0}
       exponential-backoff-default: ${SCHEDULER_DEFAULT_EXPONENTIAL_BACKOFF:true}
-      # Hard ceiling on any computed backoff delay, regardless of a job's
-      # own multiplier/retryDelayMs - protects against a misconfigured job
-      # scheduling its own retry days/weeks out by accident.
-      max-backoff-ms: ${SCHEDULER_MAX_BACKOFF_MS:1800000} # 30 minutes
+      max-backoff-ms: ${SCHEDULER_MAX_BACKOFF_MS:1800000}
 
     callback:
-      # HTTP_CALLBACK execution target timeouts - short and bounded so a
-      # slow/hanging target can't tie up a worker thread indefinitely.
       connect-timeout-ms: ${SCHEDULER_CALLBACK_CONNECT_TIMEOUT_MS:3000}
       read-timeout-ms: ${SCHEDULER_CALLBACK_READ_TIMEOUT_MS:10000}
 
     delay:
-      # The RabbitMQ dead-letter delay pattern used as a low-latency nudge
-      # for DELAY-triggered jobs (see SchedulerMessagingTopology) - purely
-      # an optimization on top of the database poller, safe to disable.
       enabled: ${SCHEDULER_DELAY_NUDGE_ENABLED:true}
-      # Above this delay, skip the RabbitMQ nudge entirely and rely on the
-      # poller alone - a message with a multi-day TTL sitting in RabbitMQ
-      # is a worse trade than the poller just finding it whenever it fires.
-      max-delay-ms: ${SCHEDULER_DELAY_NUDGE_MAX_MS:3600000} # 1 hour
+      max-delay-ms: ${SCHEDULER_DELAY_NUDGE_MAX_MS:3600000}
 
     internal:
-      # Shared secret every internal caller (REST or gRPC) must present -
-      # see InternalTokenAuthFilter / GrpcAuthInterceptor. Must match
-      # exactly on every calling service's side.
       api-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
 
 logging:
   pattern:
-    # Every Arceus service logs with this same correlation-id pattern so
-    # log lines from different services can be stitched together by
-    # correlationId when tracing a single request across the platform.
     level: "%5p [correlationId=%X{correlationId:-}]"
   level:
     com.arijit.schedulerservice: ${LOG_LEVEL_SCHEDULER_SERVICE:INFO}

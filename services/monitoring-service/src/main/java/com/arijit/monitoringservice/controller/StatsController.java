@@ -8,12 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** GET /stats - Platform Statistics: a lighter-weight numeric summary than /dashboard. */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Stats", description = "Platform Statistics")
 public class StatsController {
-
     private final StatsService statsService;
 
     @GetMapping("/stats")

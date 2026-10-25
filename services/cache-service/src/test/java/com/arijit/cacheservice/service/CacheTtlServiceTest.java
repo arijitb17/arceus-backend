@@ -11,12 +11,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Pure policy-math tests - no Redis, no Spring context, which is exactly
- * the point of keeping this logic in its own class.
- */
 class CacheTtlServiceTest {
-
     private final CacheProperties properties = new CacheProperties(
             new CacheProperties.Pool(16, 8, 0, 2000),
             3600L,

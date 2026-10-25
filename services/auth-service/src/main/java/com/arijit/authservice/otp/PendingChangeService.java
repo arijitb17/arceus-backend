@@ -13,7 +13,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class PendingChangeService {
-
     private final StringRedisTemplate redisTemplate;
 
     @Value("${otp.expiration-minutes}")

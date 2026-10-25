@@ -18,20 +18,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-// Everything here answers gap #2/#3 from the backend-gaps doc ("no
-// user-management API", "no RBAC model"): an admin can list/search other
-// users, see their detail, change their roles, and enable/disable their
-// account. Deliberately does NOT let an admin edit another user's
-// email/phone/password directly - those stay under the user's own OTP-gated
-// change flows in AuthController, so this never becomes a silent
-// account-takeover tool.
 @RestController
 @RequestMapping("/api/auth/users")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "User Management", description = "Admin-only: list, search, and manage other users' roles/status")
 public class UserManagementController {
-
     private final UserManagementService userManagementService;
 
     @GetMapping
@@ -70,9 +62,6 @@ public class UserManagementController {
         return ResponseEntity.ok(userManagementService.updateStatus(id, request, userDetails.getUsername()));
     }
 
-    // Answers gap #3 from the backend-gaps doc ("no session-listing/revocation
-    // endpoint"). A "session" is one live refresh token, i.e. one
-    // device/browser that's currently logged in as this user.
     @GetMapping("/{id}/sessions")
     @Operation(summary = "List a user's active sessions (one per logged-in device)")
     public ResponseEntity<SessionPageResponse> listSessions(

@@ -23,20 +23,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-/**
- * The one API every other service should call instead of implementing its
- * own email/SMS/push logic - see roadmap Step 2. Admin-only: this can send
- * arbitrary messages to arbitrary recipients and exposes delivery history
- * (recipient emails/phone numbers), neither of which any authenticated
- * end user should be able to reach.
- */
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
 @Tag(name = "Notifications", description = "Send templated notifications and inspect delivery history")
 @PreAuthorize("hasRole('ADMIN')")
 public class NotificationController {
-
     private final NotificationDispatchService dispatchService;
     private final NotificationRecordRepository recordRepository;
 
@@ -73,12 +65,7 @@ public class NotificationController {
         return ResponseEntity.ok(PagedResponse.of(results));
     }
 
-    // Answers the "no queue/pending-message inspection endpoint" gap. This
-    // is really a convenience view over search() - PENDING + RETRYING are
-    // the two non-terminal states NotificationRetryScheduler still acts on -
-    // but a dedicated route + oldest-first ordering makes "what's stuck
-    // right now" a one-call answer instead of the caller having to know
-    // which statuses count as "in the queue".
+
     @GetMapping("/notifications/queue")
     @Operation(summary = "What's currently pending/retrying, oldest first - what the retry scheduler will act on next")
     public ResponseEntity<PagedResponse<NotificationResponse>> queue(

@@ -9,7 +9,6 @@ public record PhoneChangedEvent(
         String newPhoneNumber,
         Instant occurredAt
 ) implements DomainEvent {
-
     public static PhoneChangedEvent now(UUID userId, String oldPhoneNumber, String newPhoneNumber) {
         return new PhoneChangedEvent(userId, oldPhoneNumber, newPhoneNumber, Instant.now());
     }

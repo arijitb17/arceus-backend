@@ -8,14 +8,6 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 import java.time.Instant;
 
-/**
- * POST /jobs body (and the shape ScheduleJobRequest on the gRPC side
- * mirrors field-for-field). Which of cronExpression/delayMs/fixedRateMs/
- * fixedDelayMs and callbackUrl/(targetExchange+targetRoutingKey) is
- * actually required depends on triggerType/executionTarget - see
- * JobValidationService, since Bean Validation alone can't express
- * "exactly one of these depending on that enum" cleanly.
- */
 public record CreateJobRequest(
         @NotBlank String jobName,
         @NotBlank String serviceName,

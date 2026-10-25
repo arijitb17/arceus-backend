@@ -26,22 +26,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-/**
- * The engine behind every cache-service endpoint, REST and gRPC alike -
- * both {@code CacheController} and {@code CacheGrpcServiceImpl} are thin
- * adapters over this one class, so REST and gRPC callers always see
- * identical behavior.
- * <p>
- * Every entry is two Redis keys written/expired together: the data key
- * (native String/Hash/List/Set/SortedSet) and a {@code __meta} hash
- * recording type/serialization/compression/TTL policy - see
- * {@link CacheEntryMetadata} and {@link CacheKeyBuilder}.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CacheStoreService {
-
     private final RedisTemplate<String, byte[]> cacheRedisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
     private final CacheKeyBuilder cacheKeyBuilder;
@@ -54,16 +42,10 @@ public class CacheStoreService {
     private final CacheProperties cacheProperties;
     private final ObjectMapper objectMapper;
 
-    // ------------------------------------------------------------------
-    // Write path
-    // ------------------------------------------------------------------
-
-    /** Unconditional create-or-overwrite. Backs POST /cache. */
     public CacheResponse set(CacheRequest request) {
         return write(request, false);
     }
 
-    /** Overwrite that requires the key to already exist. Backs PUT /cache/{namespace}/{key}. */
     public CacheResponse update(CacheRequest request) {
         return write(request, true);
     }
@@ -220,10 +202,6 @@ public class CacheStoreService {
         return false;
     }
 
-    // ------------------------------------------------------------------
-    // Read path
-    // ------------------------------------------------------------------
-
     public Optional<CacheResponse> get(String namespace, String key) {
         namespaceValidator.validate(namespace);
         String dataKey = cacheKeyBuilder.dataKey(namespace, key);
@@ -303,10 +281,6 @@ public class CacheStoreService {
         return result;
     }
 
-    // ------------------------------------------------------------------
-    // Delete / exists / ttl / expire
-    // ------------------------------------------------------------------
-
     public boolean delete(String namespace, String key) {
         return cacheEvictionService.evictKey(namespace, key);
     }
@@ -316,7 +290,6 @@ public class CacheStoreService {
         return Boolean.TRUE.equals(stringRedisTemplate.hasKey(cacheKeyBuilder.metaKey(namespace, key)));
     }
 
-    /** -1 = no expiry, -2 = key does not exist. */
     public long ttl(String namespace, String key) {
         namespaceValidator.validate(namespace);
         Long ttl = stringRedisTemplate.getExpire(cacheKeyBuilder.dataKey(namespace, key), TimeUnit.SECONDS);
@@ -333,10 +306,6 @@ public class CacheStoreService {
         applyTtl(dataKey, metaKey, Optional.of(ttlSeconds));
         return true;
     }
-
-    // ------------------------------------------------------------------
-    // Increment / decrement
-    // ------------------------------------------------------------------
 
     public long incrementBy(String namespace, String key, long delta) {
         namespaceValidator.validate(namespace);
@@ -360,10 +329,6 @@ public class CacheStoreService {
         }
         return result != null ? result : 0;
     }
-
-    // ------------------------------------------------------------------
-    // Hash field operations (single-field, in addition to full HASH set/get above)
-    // ------------------------------------------------------------------
 
     public void hashSetField(String namespace, String key, String field, Object value, SerializationFormat serialization) {
         namespaceValidator.validate(namespace);
@@ -405,10 +370,6 @@ public class CacheStoreService {
         return deleted != null && deleted > 0;
     }
 
-    // ------------------------------------------------------------------
-    // Bulk operations
-    // ------------------------------------------------------------------
-
     public BulkGetResponse bulkGet(List<CacheKeyRef> refs) {
         List<CacheResponse> found = new ArrayList<>();
         List<CacheKeyRef> missing = new ArrayList<>();
@@ -433,10 +394,6 @@ public class CacheStoreService {
         }
         return new BulkPutResponse(results);
     }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
 
     private void applyTtl(String dataKey, String metaKey, Optional<Long> ttlSeconds) {
         if (ttlSeconds.isEmpty()) {

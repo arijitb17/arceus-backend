@@ -22,17 +22,9 @@ import net.devh.boot.grpc.server.service.GrpcService;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * See organization.proto's javadoc: this is what lets auth-service
- * authorize project-scoped API key issuance without re-implementing
- * organization-service's own OrgRole checks. A malformed UUID is treated
- * as "not authorized"/"does not exist" rather than an error - the caller
- * only ever needs a yes/no here, not a reason.
- */
 @GrpcService
 @RequiredArgsConstructor
 public class OrganizationAccessGrpcService extends OrganizationAccessGrpcServiceGrpc.OrganizationAccessGrpcServiceImplBase {
-
     private final OrgAccessGuard accessGuard;
     private final ProjectRepository projectRepository;
     private final ProjectEnvironmentRepository environmentRepository;

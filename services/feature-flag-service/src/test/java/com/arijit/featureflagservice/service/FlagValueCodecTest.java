@@ -16,7 +16,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FlagValueCodecTest {
-
     private final FlagValueCodec codec = new FlagValueCodec(new ObjectMapper());
 
     private FeatureFlag.FeatureFlagBuilder baseFlag(FlagType type) {

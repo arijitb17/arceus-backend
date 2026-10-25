@@ -15,17 +15,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Meant to sit in front of (or alongside) every other service eventually -
- * see roadmap: API Gateway -> Rate Limiter -> Auth -> Notification -> Any
- * Future Service. Today it's called directly; nothing here assumes a
- * gateway exists yet.
- */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Rate Limiter", description = "Ask whether a call identified by `key` is allowed right now")
 public class RateLimitController {
-
     private final SlidingWindowLimiter slidingWindowLimiter;
     private final TokenBucketLimiter tokenBucketLimiter;
 

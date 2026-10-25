@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @Tag(name = "Health", description = "Scheduler status, worker pool, and broker/database connectivity")
 public class HealthController {
-
     private final HealthService healthService;
 
     @GetMapping("/health")

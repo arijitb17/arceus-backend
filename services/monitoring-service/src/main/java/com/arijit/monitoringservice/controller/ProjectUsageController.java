@@ -21,18 +21,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * See UsageRollup's javadoc for what backs this. Any organization member
- * (not just OWNER/ADMIN) can read a project's own usage - viewing usage
- * isn't a management action - checked via organization-service's gRPC
- * CheckMemberAccess rather than duplicating its OrgRole logic here.
- */
 @RestController
 @RequestMapping("/projects/{projectId}/usage")
 @RequiredArgsConstructor
 @Tag(name = "Project Usage", description = "Developer-facing, project-scoped request volume (usage/logs work)")
 public class ProjectUsageController {
-
     private final UsageRollupRepository usageRollupRepository;
     private final OrganizationAccessGrpcServiceGrpc.OrganizationAccessGrpcServiceBlockingStub organizationAccessStub;
 

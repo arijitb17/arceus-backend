@@ -4,16 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Every {@code GET /actuator/metrics/{name}} response has the same shape
- * regardless of metric name: {@code {"name": ..., "measurements": [{"statistic":
- * "VALUE", "value": 1.23}], "availableTags": [...]}}. This is the one place
- * that knows how to pull the first measurement's numeric value back out,
- * shared by ServiceHealthCollector (process.uptime) and
- * ServiceMetricsCollector (everything else).
- */
 final class MetricParsing {
-
     private MetricParsing() {
     }
 
@@ -36,7 +27,6 @@ final class MetricParsing {
         return Optional.empty();
     }
 
-    /** Sums every measurement's value - useful for counters like http.server.requests where COUNT is what matters. */
     static Optional<Double> statisticValue(Map<String, Object> body, String statistic) {
         if (body == null) {
             return Optional.empty();

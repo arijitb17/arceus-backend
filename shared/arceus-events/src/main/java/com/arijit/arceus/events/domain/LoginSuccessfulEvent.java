@@ -8,7 +8,6 @@ public record LoginSuccessfulEvent(
         String email,
         Instant occurredAt
 ) implements DomainEvent {
-
     public static LoginSuccessfulEvent now(UUID userId, String email) {
         return new LoginSuccessfulEvent(userId, email, Instant.now());
     }

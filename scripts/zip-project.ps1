@@ -1,28 +1,3 @@
-<#
-.SYNOPSIS
-Creates a clean backup zip of the Arceus Platform source code.
-
-Excludes:
-- Git metadata
-- IDE folders
-- Maven build output
-- Next.js build/cache
-- Node modules
-- Logs
-- Temporary files
-
-Keeps:
-- Spring Boot source
-- Next.js source
-- Shared libraries
-- Scripts
-- Docker files
-- .env
-- pom.xml
-- package.json
-- package-lock.json
-- README
-#>
 
 param(
     [string]$SourceDir = (Get-Location).Path,
@@ -31,7 +6,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Directories to exclude (anywhere in the tree)
 $excludeDirs = @(
     ".git",
     ".idea",
@@ -63,7 +37,6 @@ $excludeDirs = @(
     ".DS_Store"
 )
 
-# File patterns to exclude
 $excludeFiles = @(
     "*.class",
     "*.jar",

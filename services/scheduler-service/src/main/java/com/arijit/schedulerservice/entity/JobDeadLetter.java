@@ -9,14 +9,6 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * One row per job that exhausted {@code maxRetries} - a queryable "what
- * finally gave up, and why" view, separate from {@link JobExecutionHistory}
- * (which has one row per *attempt*, not one row per *job that died*).
- * Nothing currently retries out of this table automatically; it's the
- * platform's DLQ inspection surface, analogous to a RabbitMQ .dlq queue
- * but for job-level (not message-level) failures.
- */
 @Entity
 @Table(name = "job_dead_letters", indexes = {
         @Index(name = "idx_dlq_job_id", columnList = "jobId"),
@@ -27,7 +19,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JobDeadLetter {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

@@ -8,22 +8,6 @@ option java_outer_classname = "CacheProto";
 
 import "gateway.proto";
 
-// Mirrors com.arijit.cacheservice.dto.* - the gRPC face of cache-service,
-// used by other in-platform services (Auth, Gateway, Notification, ...)
-// that want a fast, typed, in-cluster path to the cache instead of going
-// through the REST API. Every operation is namespaced; there is no
-// "global" key that isn't scoped to a namespace like "auth", "session",
-// "otp", "user", "notification", "ratelimit", etc.
-//
-// `value` is always the string representation of the payload, interpreted
-// according to `serialization`:
-//   JSON   - value is a JSON document (object/array/scalar) as text
-//   STRING - value is used verbatim
-//   BINARY - value is Base64-encoded raw bytes
-// This keeps the wire format simple (one string field) regardless of
-// storage type or serialization, mirroring the REST CacheRequest/Response
-// DTOs field-for-field.
-
 message CacheKeyRef {
   string namespace = 1;
   string key = 2;
@@ -33,13 +17,13 @@ message PutRequest {
   string namespace = 1;
   string key = 2;
   string value = 3;
-  string type = 4;                          // STRING (default) | HASH | LIST | SET | SORTED_SET
-  string serialization = 5;                 // JSON (default) | STRING | BINARY
+  string type = 4;
+  string serialization = 5;
   bool compress = 6;
-  string ttl_policy = 7;                    // NO_EXPIRY (default) | ABSOLUTE | SLIDING | CUSTOM
-  int64 ttl_seconds = 8;                    // used by SLIDING / CUSTOM
-  int64 absolute_expire_at_epoch_seconds = 9; // used by ABSOLUTE
-  string cache_policy = 10;                 // CACHE_ASIDE (default) | WRITE_THROUGH | WRITE_AROUND
+  string ttl_policy = 7;
+  int64 ttl_seconds = 8;
+  int64 absolute_expire_at_epoch_seconds = 9;
+  string cache_policy = 10;
 }
 
 message PutResponse {
@@ -55,7 +39,7 @@ message GetResponse {
   string value = 4;
   string type = 5;
   string serialization = 6;
-  int64 ttl_seconds_remaining = 7; // -1 = no expiry, -2 = not found
+  int64 ttl_seconds_remaining = 7;
 }
 
 message DeleteResponse {
@@ -79,7 +63,7 @@ message ExpireResponse {
 message IncrementRequest {
   string namespace = 1;
   string key = 2;
-  int64 delta = 3; // negative delta performs a decrement
+  int64 delta = 3;
 }
 
 message IncrementResponse {

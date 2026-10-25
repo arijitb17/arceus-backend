@@ -11,16 +11,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
-/**
- * The one place trigger math happens - JobPollerService and JobService
- * never compute a timestamp themselves, they call in here. Keeping this
- * isolated is what makes "add a new trigger type later" (or "swap this for
- * Quartz's CronTrigger") a change confined to one class.
- */
 @Component
 public class TriggerCalculator {
-
-    /** First nextFireAt for a brand new job, at creation time. */
     public Instant firstFireAt(Job job) {
         Instant now = Instant.now();
         return switch (job.getTriggerType()) {
@@ -32,28 +24,16 @@ public class TriggerCalculator {
         };
     }
 
-    /**
-     * The next nextFireAt after a run completes successfully. Only called
-     * for {@link JobTriggerType#isRecurring()} jobs - one-time jobs
-     * (IMMEDIATE/DELAY) go terminal (COMPLETED, nextFireAt cleared) instead
-     * of calling this.
-     */
     public Instant nextRecurringFireAt(Job job) {
         Instant reference = job.getNextFireAt() != null ? job.getNextFireAt() : Instant.now();
         return switch (job.getTriggerType()) {
             case CRON -> nextCronFireAfter(requireCron(job), Instant.now());
-            // FIXED_RATE measures from the previous *scheduled* time, so a
-            // slow run doesn't skew the cadence - it may fire again
-            // immediately (even "in the past") if a run overran the rate.
             case FIXED_RATE -> reference.plusMillis(requireField(job.getFixedRateMs(), "fixedRateMs", job.getTriggerType()));
-            // FIXED_DELAY measures from *now* (completion), so slow runs
-            // push every subsequent fire back instead of stacking up.
             case FIXED_DELAY -> Instant.now().plusMillis(requireField(job.getFixedDelayMs(), "fixedDelayMs", job.getTriggerType()));
             default -> throw new IllegalStateException("nextRecurringFireAt called for non-recurring trigger " + job.getTriggerType());
         };
     }
 
-    /** Backoff delay before the next retry attempt - see RetryPolicyService for the full policy. */
     public Instant nextRetryFireAt(Job job, long delayMs) {
         return Instant.now().plusMillis(delayMs);
     }

@@ -11,6 +11,8 @@ import com.arijit.organizationservice.exception.ApiException;
 import com.arijit.organizationservice.repository.ModuleEnablementRepository;
 import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import com.arijit.arceus.events.logging.LogMasker;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,32 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Generates the config a project's SDK client reads (architecture design
- * §9) - the point of the whole platform: everything upstream of this
- * (organizations, projects, module provisioning, API keys, GitHub) exists
- * so that a developer can hit this one endpoint and get something they can
- * paste into {@code new ArceusClient(config)}.
- * <p>
- * Deliberately reads only two things this service already owns
- * (ModuleEnablement's ACTIVE rows, this project's identity) plus one
- * cross-service call (a PUBLIC key from auth-service, minted on demand if
- * the project doesn't have one yet - see ApiKeyService#getOrCreateProjectPublicKey).
- * It does not call the Gateway for a live route manifest - the module base
- * routes below are the same ones registered in gateway-service's own
- * {@code ProxyController.Route} enum, which changes about as often as this
- * static map would need to; wiring an actual live "list your routes" RPC
- * for something this stable was judged not worth the extra moving part.
- * If gateway-service's routes are ever restructured, update
- * {@link #MODULE_BASE_ROUTES} to match - the two are equally sources of
- * truth today; there's no runtime-verified link between them yet, which is
- * the one honest gap here.
- */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SdkConfigService {
-
-    /** Mirrors gateway-service's ProxyController.Route enum - see class javadoc for why this isn't fetched live. */
     private static final Map<ModuleType, String> MODULE_BASE_ROUTES = new EnumMap<>(Map.of(
             ModuleType.AUTHENTICATION, "/api/auth",
             ModuleType.NOTIFICATION, "/api/notifications",
@@ -76,6 +56,7 @@ public class SdkConfigService {
 
         String apiKey = resolveApiKey(organizationId, projectId, environment, callerEmail);
 
+        log.info("SDK config generated: project={} env={} modules={} by={}", projectId, environment, modules.size(), LogMasker.email(callerEmail));
         return new SdkConfigResponse(projectId, project.getSlug(), environment.name(), apiKey, gatewayBaseUrl, modules);
     }
 
@@ -89,25 +70,19 @@ public class SdkConfigService {
                     .setRequestedBy(callerEmail)
                     .build());
         } catch (StatusRuntimeException e) {
+            log.error("auth-service getOrCreateProjectPublicKey failed: project={} env={} status={}", projectId, environment, e.getStatus(), e);
             throw new ApiException("Could not provision an API key (auth-service unreachable)", HttpStatus.SERVICE_UNAVAILABLE);
         }
 
         if (!response.getError().isEmpty()) {
+            log.warn("auth-service refused to provision SDK key: project={} env={} error={}", projectId, environment, response.getError());
             throw new ApiException("Could not provision an API key: " + response.getError(), HttpStatus.BAD_REQUEST);
         }
 
         if (response.getCreated()) {
-            // The only time this raw key is ever available - see ApiKey's
-            // javadoc in auth-service. The Developer Portal must show it to
-            // the developer immediately and prominently; it cannot be
-            // fetched again after this response.
             return response.getRawKey();
         }
 
-        // A PUBLIC key already existed and auth-service correctly didn't
-        // re-expose its plaintext - see getOrCreateProjectPublicKey's
-        // javadoc. There is nothing usable to embed in this config; the
-        // developer already has that key from when it was first created.
         return "<YOUR_EXISTING_" + response.getKeyPrefix() + "..._KEY - paste the value you saved when it was created>";
     }
 }

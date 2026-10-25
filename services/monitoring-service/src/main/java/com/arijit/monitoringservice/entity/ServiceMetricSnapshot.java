@@ -17,26 +17,10 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * One row per metrics collection {@link com.arijit.monitoringservice.service.ServicePollingService}
- * performs against one monitored service. Fields split into two groups:
- * <ul>
- *   <li><b>Universal (always populated when the service responds):</b> cpuUsagePercent,
- *       memoryUsedMb, memoryMaxMb, jvmHeapUsedMb, threadCount, avgResponseTimeMs,
- *       requestCount, errorCount, successRate - sourced from every Spring Boot
- *       Actuator app's built-in Micrometer meters, no extra instrumentation
- *       needed on the monitored service's side.</li>
- *   <li><b>Service-specific (nullable, opportunistic):</b> activeConnections,
- *       queueSize, cacheHitRatio, cacheMissRatio, schedulerActiveJobs,
- *       schedulerFailedJobs, featureFlagEvaluations, rateLimitRequests,
- *       rateLimitBlocked - populated only once/if the corresponding service
- *       publishes a custom Micrometer meter under a well-known name (see
- *       ServiceMetricsCollector's KNOWN_CUSTOM_METRICS map). Left {@code null}
- *       otherwise rather than defaulting to 0, so a dashboard can distinguish
- *       "definitely zero" from "not instrumented yet" - this is exactly the
- *       seam that lets scheduler-service/cache-service/etc add real
- *       instrumentation later without monitoring-service's public API
- *       changing at all.</li>
- * </ul>
+ * Left {@code null} otherwise rather than defaulting to 0, so a dashboard can distinguish
+ * "definitely zero" from "not instrumented yet" - this is exactly the seam that lets scheduler-
+ * service/cache-service/etc add real instrumentation later without monitoring-service's public API
+ * changing at all.</li> </ul>
  */
 @Entity
 @Table(name = "service_metric_snapshots",
@@ -49,7 +33,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ServiceMetricSnapshot {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

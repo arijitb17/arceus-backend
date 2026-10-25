@@ -38,17 +38,11 @@
     </properties>
 
     <dependencies>
-        <!-- gRPC server: exposes MonitoringGrpcService for in-cluster callers
-             that want a fast, typed, read-only path to platform health/
-             metrics/alerts instead of the REST API. -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-server-spring-boot-starter</artifactId>
             <version>${grpc-spring.version}</version>
         </dependency>
-        <!-- gRPC client: calls organization-service's CheckMemberAccess to
-             authorize the developer-facing project usage endpoint - see
-             ProjectUsageController/GrpcClientConfig. -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-client-spring-boot-starter</artifactId>
@@ -87,12 +81,6 @@
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
-        <!-- Own database: health/metric snapshot history, alert rules, and
-             alert event history. Per the platform rule "services never
-             access another service's database", this is a separate schema
-             from every other service's - monitoring-service learns about
-             the rest of the platform purely over the network (HTTP/gRPC),
-             never by reading their tables directly. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -103,10 +91,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Optional read cache for the latest-snapshot-per-service view
-             backing GET /dashboard and GET /services - see
-             LatestStateCache, which degrades to DB-only reads if Redis is
-             unreachable rather than failing the dashboard. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
@@ -117,11 +101,6 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- The one service in the platform that actually scrapes/exposes
-             Prometheus-formatted metrics today (see application.yml) - it
-             both collects every other service's Actuator metrics and
-             exposes its own the same way, so Prometheus can scrape
-             monitoring-service itself alongside everything it monitors. -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>

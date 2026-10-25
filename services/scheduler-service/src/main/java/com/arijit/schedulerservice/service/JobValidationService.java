@@ -6,24 +6,15 @@ import com.arijit.schedulerservice.exception.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-/**
- * {@code @NotBlank}/{@code @NotNull} on CreateJobRequest covers fields
- * every job needs regardless of shape; this covers the "exactly one of
- * these depending on that enum" rules Bean Validation can't express
- * cleanly without a custom cross-field constraint annotation - e.g. a
- * CRON job needs cronExpression but not delayMs, an HTTP_CALLBACK job
- * needs callbackUrl but not targetExchange/targetRoutingKey.
- */
 @Component
 public class JobValidationService {
-
     public void validateCreate(CreateJobRequest request) {
         switch (request.triggerType()) {
             case CRON -> requireBlank(request.cronExpression(), "cronExpression", JobTriggerType.CRON);
             case DELAY -> requirePositive(request.delayMs(), "delayMs", JobTriggerType.DELAY);
             case FIXED_RATE -> requirePositive(request.fixedRateMs(), "fixedRateMs", JobTriggerType.FIXED_RATE);
             case FIXED_DELAY -> requirePositive(request.fixedDelayMs(), "fixedDelayMs", JobTriggerType.FIXED_DELAY);
-            case IMMEDIATE -> { /* no extra fields required */ }
+            case IMMEDIATE -> { }
         }
 
         switch (request.executionTarget()) {

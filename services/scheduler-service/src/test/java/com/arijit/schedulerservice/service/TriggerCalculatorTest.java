@@ -13,7 +13,6 @@ import java.time.temporal.ChronoUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TriggerCalculatorTest {
-
     private final TriggerCalculator calculator = new TriggerCalculator();
 
     private Job.JobBuilder baseJob() {

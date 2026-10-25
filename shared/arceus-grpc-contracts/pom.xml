@@ -20,11 +20,6 @@
     </description>
 
     <properties>
-        <!-- Boot 3.5 doesn't manage io.grpc/protobuf versions via BOM (that
-             only started with Boot 4.1), so every version here is pinned
-             explicitly. grpc 1.68.1 / protobuf-java 3.25.5 is a long-stable,
-             widely-deployed pairing - protoc and protoc-gen-grpc-java are
-             kept in lockstep with those same versions for wire compatibility. -->
         <grpc.version>1.68.1</grpc.version>
         <protobuf.version>3.25.5</protobuf.version>
         <protoc.version>${protobuf.version}</protoc.version>
@@ -51,12 +46,6 @@
             <groupId>jakarta.annotation</groupId>
             <artifactId>jakarta.annotation-api</artifactId>
         </dependency>
-        <!-- grpc-java's generated *Grpc.java classes are annotated with the
-             old @javax.annotation.Generated (JSR-250), not the newer
-             jakarta.annotation.Generated the dependency above provides -
-             two different packages, both needed. javax.annotation.Generated
-             was removed from the JDK itself in Java 9, so without this the
-             generated sources fail to compile with "cannot find symbol". -->
         <dependency>
             <groupId>javax.annotation</groupId>
             <artifactId>javax.annotation-api</artifactId>

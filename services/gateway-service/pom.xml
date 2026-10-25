@@ -21,13 +21,11 @@
     </properties>
 
     <dependencies>
-        <!-- REST entry point for clients -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- OpenAPI/Swagger annotations used by LiveUpdatesController (@Tag, @Operation) -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -46,9 +44,6 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Live-updates SSE fan-out: consumes the same domain-event bus every
-             other subscriber (audit-service, notification-service) already
-             binds its own queue to - see live/LiveUpdatesRabbitConfig. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
@@ -59,7 +54,6 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
-        <!-- gRPC client: talks to Auth, Notification, Audit, and RateLimiter -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-client-spring-boot-starter</artifactId>
@@ -71,9 +65,6 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
-        <!-- JWT verification only - the Gateway never issues tokens, only
-             validates the ones auth-service already issued. Same secret,
-             same library, so validation semantics never drift apart. -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -92,7 +83,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Reads the root .env file, same as every other service -->
         <dependency>
             <groupId>me.paulschwarz</groupId>
             <artifactId>springboot3-dotenv</artifactId>

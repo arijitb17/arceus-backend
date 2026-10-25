@@ -15,26 +15,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Owns the two things JobPollerService and the delay/retry consumers both
- * need: claiming a due job (flip SCHEDULED/RETRYING -> RUNNING inside one
- * short transaction, so the row is never left in an ambiguous state) and
- * then actually running it on a worker thread. The outcome (COMPLETED/
- * FAILED/RETRYING/EXPIRED) is applied by the separately-injected
- * {@link JobOutcomeService} rather than a private method here, so its
- * {@code @Transactional} methods go through Spring's proxy instead of a
- * same-class call that would silently skip the transaction.
- * <p>
- * "Claim" and "execute" are deliberately two different transactions -
- * claiming must be fast and can't hold a row lock for as long as an
- * arbitrary HTTP callback might take, so the pessimistic lock from
- * JobRepository.findDueJobs only needs to be held for the claim.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class JobDispatchService {
-
     private final JobRepository jobRepository;
     private final JobExecutorResolver executorResolver;
     private final JobOutcomeService outcomeService;
@@ -42,7 +26,6 @@ public class JobDispatchService {
     private final ThreadPoolTaskExecutor jobTaskExecutor;
     private final com.arijit.schedulerservice.featureflag.JobFlagGateService jobFlagGateService;
 
-    /** Called by JobPollerService for every due job in a poll batch, in the same transaction as the pessimistic-locked read. */
     @Transactional
     public List<UUID> claimDueJobs(Instant now, Pageable pageable) {
         List<Job> due = jobRepository.findDueJobs(now, pageable);
@@ -56,17 +39,10 @@ public class JobDispatchService {
         }).toList();
     }
 
-    /** Hands an already-claimed (RUNNING) job to a worker thread. */
     public void executeClaimed(UUID jobId) {
         jobTaskExecutor.execute(() -> runClaimedJob(jobId));
     }
 
-    /**
-     * Used by RetryRequestConsumer/DelayReadyConsumer, which have already
-     * reset a job to SCHEDULED but want it attempted immediately rather
-     * than waiting for the next poll tick - claims it in the same
-     * short transaction style as the poller, then dispatches it.
-     */
     @Transactional
     public void tryClaimAndExecuteNow(UUID jobId) {
         Optional<Job> maybeJob = jobRepository.findById(jobId);
@@ -77,7 +53,7 @@ public class JobDispatchService {
         boolean eligible = (job.getStatus() == JobStatus.SCHEDULED || job.getStatus() == JobStatus.RETRYING)
                 && job.getNextFireAt() != null && !job.getNextFireAt().isAfter(Instant.now());
         if (!eligible) {
-            return; // already handled by the poller, already running, or genuinely not due yet
+            return;
         }
         Instant now = Instant.now();
         job.setStatus(JobStatus.RUNNING);

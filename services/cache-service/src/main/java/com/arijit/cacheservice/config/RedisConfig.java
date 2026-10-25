@@ -17,24 +17,10 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 
-/**
- * One dedicated Lettuce connection pool for the whole service, sized from
- * {@code arceus.cache.pool.*}. Two templates are exposed on top of it:
- * <ul>
- *   <li>{@code cacheRedisTemplate} - String keys / raw byte[] values, used
- *       by {@link com.arijit.cacheservice.service.CacheStoreService} for
- *       every String/Hash/List/Set/SortedSet operation, so serialization
- *       and compression stay entirely in this service's control rather
- *       than Spring's default JDK serialization.</li>
- *   <li>{@code cacheStringRedisTemplate} - plain String/String, used for
- *       SCAN-based eviction and the small stats counters where byte[]
- *       plumbing would just be overhead.</li>
- * </ul>
- */
+
 @Configuration
 @RequiredArgsConstructor
 public class RedisConfig {
-
     private final CacheProperties cacheProperties;
 
     @Value("${spring.data.redis.host}")

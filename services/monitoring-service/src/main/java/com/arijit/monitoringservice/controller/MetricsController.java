@@ -12,12 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** GET /metrics and GET /metrics/{service} - Metrics Aggregation + Metrics History. */
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Metrics", description = "Platform-wide and per-service metrics")
 public class MetricsController {
-
     private final MetricsService metricsService;
 
     @GetMapping("/metrics")

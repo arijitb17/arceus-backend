@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AlertEventRepository extends JpaRepository<AlertEvent, UUID> {
-
     Optional<AlertEvent> findByRuleIdAndServiceNameAndState(UUID ruleId, String serviceName, AlertState state);
 
     Page<AlertEvent> findByState(AlertState state, Pageable pageable);

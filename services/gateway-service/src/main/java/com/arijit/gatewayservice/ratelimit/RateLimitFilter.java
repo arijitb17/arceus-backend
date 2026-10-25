@@ -8,23 +8,16 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Map;
 
-/**
- * Third stage of the pipeline (after request-id/logging and JWT auth):
- * asks the RateLimiter Service if this authenticated caller is within
- * budget before letting the request reach the proxy controller. Public
- * routes skip this entirely - they have no authenticated identity to key
- * on, and are already covered by each service's own per-endpoint
- * @RateLimited rules (e.g. login-ip, register-ip).
- */
+@Slf4j
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
-
     private final GatewayProperties properties;
     private final RateLimitGatewayClient rateLimitGatewayClient;
     private final ErrorResponseWriter errorResponseWriter;
@@ -32,7 +25,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-
         String path = request.getRequestURI();
 
         if (properties.isPublic(path)) {
@@ -48,6 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setHeader("X-RateLimit-Remaining", String.valueOf(decision.remainingRequests()));
 
         if (!decision.allowed()) {
+            log.warn("Rate limit exceeded: identity={} path={} retryAfter={}", identity, path, decision.retryAfter());
             response.setHeader("Retry-After", String.valueOf(decision.retryAfter()));
             errorResponseWriter.write(request, response, HttpStatus.TOO_MANY_REQUESTS.value(),
                     "Too Many Requests", "Rate limit exceeded, try again later",

@@ -4,7 +4,6 @@ import com.arijit.monitoringservice.dto.AlertEventResponse;
 import com.arijit.monitoringservice.entity.AlertEvent;
 
 final class AlertEventMapper {
-
     private AlertEventMapper() {
     }
 

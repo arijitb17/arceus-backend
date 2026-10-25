@@ -6,16 +6,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Deliberately simple: {@code {{name}}} substitution, nothing else. No
- * conditionals, no loops, no HTML escaping. If a variable referenced in the
- * template is missing from the caller's `variables` map, the placeholder is
- * left as-is rather than throwing - a blank or literal "{{name}}" in an
- * email is easier to debug than a 500 on send.
- */
 @Component
 public class TemplateRenderer {
-
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\{\\s*([a-zA-Z0-9_]+)\\s*}}");
 
     public String render(String template, Map<String, Object> variables) {

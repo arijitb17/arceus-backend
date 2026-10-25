@@ -11,25 +11,10 @@ import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
 
-/**
- * The provisioning half of the module-enablement workflow (architecture
- * design §4), for the SCHEDULER module. See AuthTenantProvisioningGrpcService's
- * javadoc for why this is an honest acknowledged no-op rather than a fake
- * success: scheduler-service's jobs aren't yet grouped by project. Once
- * they are, this is where a project's own job namespace + quota gets
- * created.
- * <p>
- * Note this class lives under the same gRPC server as scheduler-service's
- * existing {@code GrpcAuthInterceptor}, which requires {@code
- * x-internal-token} on every RPC except Ping - that interceptor is global
- * to the whole gRPC server, so ProvisionTenant/DeprovisionTenant inherit
- * that requirement automatically with no extra wiring needed here.
- */
 @GrpcService
 @Slf4j
 public class SchedulerTenantProvisioningGrpcService
         extends SchedulerTenantProvisioningServiceGrpc.SchedulerTenantProvisioningServiceImplBase {
-
     @Override
     public void provisionTenant(ProvisionTenantRequest request, StreamObserver<ProvisionTenantResponse> responseObserver) {
         log.info("Provisioning SCHEDULER for project={} environment={} requestedBy={} - no-op pending tenant-scoped job namespaces",

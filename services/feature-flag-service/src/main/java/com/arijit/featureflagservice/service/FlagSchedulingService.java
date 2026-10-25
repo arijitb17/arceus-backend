@@ -15,29 +15,15 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 /**
- * Feature flags never run their own {@code @Scheduled} sweep for
- * activateAt/deactivateAt - per the platform rule every service delegates
- * this kind of work to scheduler-service instead of rolling its own (see
- * scheduler-service's module Javadoc). When a flag is created/updated
- * with an activateAt/deactivateAt, this registers a one-time
- * HTTP_CALLBACK job there that calls back into
- * {@code POST /internal/flags/{key}/scheduled-activate} (or
- * {@code -deactivate}) at the right instant; FlagScheduleCallbackController
- * is the receiving end. The job id scheduler-service hands back is stored
- * on the flag row so it can be cancelled if the schedule changes or the
- * flag is deleted before it fires.
- * <p>
- * Every call here is best-effort: a scheduler-service outage must not
- * block a flag create/update. On failure this logs and returns null (no
- * job id stored) - the flag is simply left without a scheduled transition
- * until the caller retries the update, rather than the whole request
- * failing over an optional feature.
+ * Feature flags never run their own {@code @Scheduled} sweep for activateAt/deactivateAt - per the
+ * platform rule every service delegates this kind of work to scheduler-service instead of rolling
+ * its own (see scheduler-service's module Javadoc). Every call here is best-effort: a scheduler-
+ * service outage must not block a flag create/update.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FlagSchedulingService {
-
     private static final String ACTIVATE_PATH = "/scheduled-activate";
     private static final String DEACTIVATE_PATH = "/scheduled-deactivate";
 

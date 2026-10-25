@@ -20,12 +20,6 @@ public record ProjectApiKeyResponse(
         return new ProjectApiKeyResponse(
                 apiKey.getId(),
                 apiKey.getName(),
-                // Raw prefix, no "..." baked in here - that's display
-                // formatting, not data, and belongs in the frontend (see
-                // api-keys-panel.tsx) the same way the personal-keys
-                // endpoint (ApiKeyResponse) already does it. Baking it in
-                // here meant "copy prefix" copied literal dots along with
-                // it - useless for matching against anything.
                 apiKey.getKeyPrefix(),
                 apiKey.getKeyType() == null ? null : apiKey.getKeyType().name(),
                 apiKey.getEnvironment(),

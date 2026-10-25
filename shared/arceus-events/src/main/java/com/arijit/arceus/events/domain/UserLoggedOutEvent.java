@@ -8,7 +8,6 @@ public record UserLoggedOutEvent(
         String email,
         Instant occurredAt
 ) implements DomainEvent {
-
     public static UserLoggedOutEvent now(UUID userId, String email) {
         return new UserLoggedOutEvent(userId, email, Instant.now());
     }

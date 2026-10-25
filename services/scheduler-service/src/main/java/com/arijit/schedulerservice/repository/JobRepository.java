@@ -15,17 +15,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface JobRepository extends JpaRepository<Job, UUID> {
-
-    /**
-     * The one query JobPollerService runs every poll interval:
-     * SCHEDULED-or-RETRYING jobs due now, highest priority (then oldest
-     * nextFireAt) first, capped to a batch. {@code PESSIMISTIC_WRITE} with
-     * Postgres row locking is what keeps this safe if this ever runs from
-     * more than one instance before real leader election exists - a second
-     * instance's identical query simply blocks on (and then skips, having
-     * re-read the now-RUNNING status) rows the first already claimed,
-     * rather than double-dispatching the same job.
-     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT j FROM Job j
@@ -35,7 +24,6 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
             """)
     List<Job> findDueJobs(@Param("now") Instant now, Pageable pageable);
 
-    /** Jobs sitting PENDING/SCHEDULED past their own expiresAt without ever firing - picked up by JobExpiryService. */
     @Query("""
             SELECT j FROM Job j
             WHERE j.status IN (com.arijit.schedulerservice.entity.JobStatus.PENDING, com.arijit.schedulerservice.entity.JobStatus.SCHEDULED, com.arijit.schedulerservice.entity.JobStatus.PAUSED)

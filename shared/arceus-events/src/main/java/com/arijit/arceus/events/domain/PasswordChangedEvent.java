@@ -8,7 +8,6 @@ public record PasswordChangedEvent(
         String email,
         Instant occurredAt
 ) implements DomainEvent {
-
     public static PasswordChangedEvent now(UUID userId, String email) {
         return new PasswordChangedEvent(userId, email, Instant.now());
     }

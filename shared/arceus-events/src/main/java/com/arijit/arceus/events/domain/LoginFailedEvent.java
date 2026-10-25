@@ -7,7 +7,6 @@ public record LoginFailedEvent(
         String reason,
         Instant occurredAt
 ) implements DomainEvent {
-
     public static LoginFailedEvent now(String email, String reason) {
         return new LoginFailedEvent(email, reason, Instant.now());
     }

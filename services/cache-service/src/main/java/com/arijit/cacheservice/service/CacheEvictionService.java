@@ -11,17 +11,10 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Manual (single key), namespace-wide, and pattern eviction. All three
- * funnel through {@link #deleteByPattern}, which uses SCAN (not KEYS) so a
- * large eviction doesn't block the shared Redis instance for other
- * namespaces mid-scan.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CacheEvictionService {
-
     private static final int SCAN_BATCH_SIZE = 500;
     private static final int DELETE_BATCH_SIZE = 500;
 
@@ -30,7 +23,6 @@ public class CacheEvictionService {
     private final NamespaceValidator namespaceValidator;
     private final CacheStatsService cacheStatsService;
 
-    /** Deletes a single key's data + metadata. Returns true if the data key existed. */
     public boolean evictKey(String namespace, String key) {
         namespaceValidator.validate(namespace);
         String dataKey = cacheKeyBuilder.dataKey(namespace, key);
@@ -74,9 +66,6 @@ public class CacheEvictionService {
             deletedCount += deleted != null ? deleted : 0;
         }
 
-        // Reports the raw number of Redis keys removed, which includes each
-        // entry's "__meta" companion alongside its data key - so this is
-        // typically ~2x the number of logical cache entries evicted.
         return deletedCount;
     }
 }

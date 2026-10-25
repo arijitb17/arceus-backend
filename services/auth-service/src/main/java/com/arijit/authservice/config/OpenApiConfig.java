@@ -7,11 +7,8 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-// Without this, Swagger UI has no "Authorize" button - it doesn't know this
-// API expects a Bearer JWT unless told explicitly.
 @Configuration
 public class OpenApiConfig {
-
     @Bean
     public OpenAPI authServiceOpenAPI() {
         final String schemeName = "bearerAuth";

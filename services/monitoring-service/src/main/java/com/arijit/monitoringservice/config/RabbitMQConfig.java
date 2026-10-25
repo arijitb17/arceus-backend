@@ -14,19 +14,8 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * monitoring-service publishes onto the platform-wide domain event bus
- * ({@code arceus.events.exchange}) - {@code service.down}, {@code
- * service.recovered}, {@code alert.triggered}, {@code alert.resolved} (see
- * MonitoringEventPublisher) - and, as of the usage-rollup work, also
- * consumes from it: gateway-service's {@code usage.request_recorded}
- * events, aggregated into {@code UsageRollup} rows by UsageRollupConsumer.
- * This is the one exception to "monitoring-service never consumes this
- * exchange" from the original version of this class's javadoc.
- */
 @Configuration
 public class RabbitMQConfig {
-
     private static final String USAGE_QUEUE = "arceus.monitoring.usage-rollup.queue";
 
     @Bean

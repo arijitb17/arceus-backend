@@ -8,13 +8,11 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-// One row per value of the {@link Role} enum (seeded by RbacSeeder, see
-// config/). This is what turns the two hardcoded roles into something a
-// "Permissions" admin screen can actually manage: an admin can't invent a
-// brand-new Spring Security role (that still requires a code change to
-// mean anything at the filter-chain level), but they CAN curate exactly
-// which permissions ROLE_ADMIN vs ROLE_USER carries, and any service can
-// look that assignment up instead of hardcoding "admin can do everything".
+// This is what turns the two hardcoded roles into something a "Permissions" admin screen can
+// actually manage: an admin can't invent a brand-new Spring Security role (that still requires a
+// code change to mean anything at the filter-chain level), but they CAN curate exactly which
+// permissions ROLE_ADMIN vs ROLE_USER carries, and any service can look that assignment up instead
+// of hardcoding "admin can do everything".
 @Entity
 @Table(name = "role_definitions", uniqueConstraints = @UniqueConstraint(columnNames = "role_key"))
 @Getter
@@ -23,7 +21,6 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class RoleDefinition {
-
     @Id
     @GeneratedValue
     private UUID id;

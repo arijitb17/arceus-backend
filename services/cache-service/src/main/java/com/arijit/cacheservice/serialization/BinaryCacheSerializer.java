@@ -6,10 +6,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.Base64;
 
-/** value is Base64 text on the wire; raw decoded bytes are what's stored in Redis. */
 @Component
 public class BinaryCacheSerializer implements CacheSerializer {
-
     @Override
     public byte[] toBytes(String value) {
         try {

@@ -14,24 +14,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * One publish() per flag mutation, reusing the exact same
- * {@link EventEnvelope} shape every other Arceus publisher uses (see
- * scheduler-service's JobLifecycleEventPublisher for the same pattern) -
- * this is what lets audit-service's existing {@code "#"} binding capture
- * every flag change for free, with zero code changes on its end.
- * <p>
- * Same failure posture as every other publisher in the platform: a
- * publish failure is logged and swallowed. The flag's own state change
- * (already committed to Postgres by the time this is called) must never
- * be rolled back just because this best-effort notification couldn't be
- * sent - FlagAuditService's local audit row is the durable record; this
- * is a bonus for external subscribers.
+ * The flag's own state change (already committed to Postgres by the time this is called) must never
+ * be rolled back just because this best-effort notification couldn't be sent - FlagAuditService's
+ * local audit row is the durable record; this is a bonus for external subscribers.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class FlagEventPublisher {
-
     private final RabbitTemplate rabbitTemplate;
 
     @Value("${spring.application.name}")

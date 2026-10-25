@@ -14,7 +14,6 @@ import java.time.temporal.ChronoUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FlagValidationServiceTest {
-
     private final FlagValidationService validationService = new FlagValidationService();
 
     private CreateFlagRequest baseRequest(Environment environment, TargetType targetType) {

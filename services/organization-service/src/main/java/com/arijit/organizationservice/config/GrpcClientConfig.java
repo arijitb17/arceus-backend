@@ -13,21 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * organization-service's outgoing gRPC calls. auth-service trusts its
- * caller's network boundary the same way organization-service does (see
- * OrganizationGatewayGrpcService), so no token is attached to that stub.
- * The five ModuleType-owning services below are called directly by
- * ModuleEnablementService to provision/deprovision a module - see that
- * class's javadoc for why this replaced the old deployment-service event
- * pipeline. auth/notification/cache trust the network boundary the same
- * way; scheduler/feature-flag run a global GrpcAuthInterceptor requiring
- * x-internal-token on every RPC, same pattern as gateway-service's own
- * GrpcClientConfig.
- */
 @Configuration
 public class GrpcClientConfig {
-
     private static final Metadata.Key<String> TOKEN_HEADER =
             Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER);
 

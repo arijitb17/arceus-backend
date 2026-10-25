@@ -16,26 +16,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Idempotent, same pattern as {@link SuperAdminBootstrap}: seeds a starter
- * permission catalog covering the admin-portal modules the backend-gaps doc
- * lists (Users, Roles/Permissions, Sessions, Notifications, plus the other
- * Gateway-routed services), and creates exactly one {@link RoleDefinition}
- * row per {@link Role} enum value with a sensible default assignment -
- * ROLE_ADMIN gets everything, ROLE_USER gets nothing (it's the unprivileged
- * default). Everything after that first run is admin-editable via
- * RbacController, and this never overwrites an existing row - so an admin's
- * later customization survives every restart/redeploy.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class RbacSeeder implements CommandLineRunner {
-
     private final PermissionRepository permissionRepository;
     private final RoleDefinitionRepository roleDefinitionRepository;
 
-    // code -> [category, description]
     private static final Map<String, String[]> BASE_PERMISSIONS = new LinkedHashMap<>();
     static {
         BASE_PERMISSIONS.put("users:read", new String[]{"Users", "View other users and their profiles"});

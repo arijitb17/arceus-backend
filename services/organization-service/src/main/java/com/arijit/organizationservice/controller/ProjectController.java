@@ -19,7 +19,6 @@ import java.util.UUID;
 @RequestMapping("/organizations/{organizationId}/projects")
 @RequiredArgsConstructor
 public class ProjectController {
-
     private final ProjectService projectService;
 
     @PostMapping

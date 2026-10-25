@@ -14,21 +14,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-/**
- * Admin-only CRUD over {@link com.arijit.notificationservice.entity.NotificationTemplate}
- * - answers gap #4 from the backend-gaps doc. Same trust model as
- * NotificationController: only reachable by ROLE_ADMIN, same as every other
- * endpoint in this service (class-level security is inherited from being
- * under this service's SecurityConfig, but stated explicitly here too since
- * template content becomes real outbound email/SMS the moment it's used).
- */
+
 @RestController
 @RequestMapping("/notifications/templates")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Notification Templates", description = "Admin-only: CRUD for notification templates")
 public class TemplateController {
-
     private final TemplateManagementService templateManagementService;
 
     @GetMapping

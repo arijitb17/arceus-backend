@@ -16,7 +16,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class StatsService {
-
     private final PlatformHealthService platformHealthService;
     private final LatestStateCache latestStateCache;
     private final AlertEventRepository alertEventRepository;

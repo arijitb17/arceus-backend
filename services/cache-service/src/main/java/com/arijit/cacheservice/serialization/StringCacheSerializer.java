@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 
 @Component
 public class StringCacheSerializer implements CacheSerializer {
-
     @Override
     public byte[] toBytes(String value) {
         return value.getBytes(StandardCharsets.UTF_8);

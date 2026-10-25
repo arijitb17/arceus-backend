@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @SpringBootApplication
 @EnableConfigurationProperties(FeatureFlagProperties.class)
 public class FeatureFlagServiceApplication {
-
     public static void main(String[] args) {
         SpringApplication.run(FeatureFlagServiceApplication.class, args);
     }

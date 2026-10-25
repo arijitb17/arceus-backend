@@ -11,6 +11,7 @@ import com.arijit.notificationservice.repository.NotificationTemplateRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.arijit.arceus.events.logging.LogMasker;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,22 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Map;
 
-/**
- * Every service in the platform should call this (via POST /notifications)
- * instead of implementing its own notification logic - see the roadmap's
- * "Every service should use Arceus Notification instead of implementing
- * notification logic".
- *
- * Flow: create a PENDING record -> attempt to render + send -> mark
- * SENT or FAILED. NotificationRetryScheduler picks FAILED records back up
- * later; this class doesn't loop/retry synchronously so the caller's HTTP
- * request never blocks on SMTP retries.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class NotificationDispatchService {
-
     private final NotificationTemplateRepository templateRepository;
     private final NotificationRecordRepository recordRepository;
     private final TemplateRenderer templateRenderer;
@@ -60,7 +49,7 @@ public class NotificationDispatchService {
                 .build();
 
         if (!channelFlagGateService.isChannelEnabled(channel)) {
-            log.info("Suppressing {} notification '{}' to {} - channel disabled via feature-flag-service", channel, templateCode, to);
+            log.info("Suppressing {} notification '{}' to {} - channel disabled via feature-flag-service", channel, templateCode, LogMasker.recipient(to));
             record.setStatus(NotificationStatus.SUPPRESSED);
             record.setLastError("Channel disabled via feature-flag-service");
             record.setUpdatedAt(Instant.now());
@@ -73,7 +62,6 @@ public class NotificationDispatchService {
         return recordRepository.save(record);
     }
 
-    /** Used by NotificationRetryScheduler - re-reads the template by code/channel since it isn't stored on the record. */
     @Transactional
     public void retry(NotificationRecord record) {
         NotificationTemplate template = templateRepository.findByChannelAndCodeAndActiveTrue(record.getChannel(), record.getTemplateCode())
@@ -108,7 +96,8 @@ public class NotificationDispatchService {
             record.setSentAt(Instant.now());
         } catch (Exception e) {
             log.warn("Notification {} to {} via {} failed (attempt {}): {}",
-                    record.getId(), record.getRecipient(), record.getChannel(), record.getAttempts(), e.getMessage());
+                    record.getId(), LogMasker.recipient(record.getRecipient()), record.getChannel(), record.getAttempts(), e.toString());
+            log.debug("Notification {} failure stack trace", record.getId(), e);
             record.setStatus(NotificationStatus.FAILED);
             record.setLastError(e.getMessage());
         }
@@ -127,6 +116,7 @@ public class NotificationDispatchService {
         try {
             return json == null ? Map.of() : objectMapper.readValue(json, Map.class);
         } catch (Exception e) {
+            log.warn("Could not parse stored notification variables: {}", e.toString());
             return Map.of();
         }
     }

@@ -13,24 +13,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * Runs first, on every request to this service's own REST endpoints. Honors
- * an inbound X-Request-Id or generates a fresh one, puts it in MDC so every
- * log line for this request carries it, and echoes it back as a response
- * header. Mirrors ratelimit-service's filter of the same name - no shared
- * dependency for a single header/MDC-key pair.
- */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
-
     private static final String HEADER_NAME = "X-Request-Id";
     private static final String MDC_KEY = "correlationId";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-
         String correlationId = request.getHeader(HEADER_NAME);
         if (correlationId == null || correlationId.isBlank()) {
             correlationId = UUID.randomUUID().toString();

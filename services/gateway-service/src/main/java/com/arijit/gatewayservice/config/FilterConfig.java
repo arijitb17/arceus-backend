@@ -22,28 +22,8 @@ import org.springframework.web.filter.CorsFilter;
 
 import java.util.List;
 
-/**
- * Every request passes through these, strictly in this order:
- * <ol>
- *   <li>CorsFilter - answers preflight OPTIONS and stamps Access-Control-* headers;
- *       the Gateway is the only REST surface browsers talk to directly</li>
- *   <li>RequestIdFilter - assigns/propagates a correlation id</li>
- *   <li>RequestLoggingFilter - times the whole request, logs once at the end</li>
- *   <li>ApiKeyAuthFilter - authenticates X-API-Key requests (project-scoped
- *       SDK traffic); a request with no key passes straight through</li>
- *   <li>JwtAuthFilter - rejects protected routes without a valid access
- *       token, unless ApiKeyAuthFilter already authenticated the request</li>
- *   <li>RouteFlagFilter - per-route feature-flag kill-switch (see
- *       RouteFlagGatewayClient); runs before rate limiting so a disabled
- *       route doesn't spend a rate-limit budget slot for nothing</li>
- *   <li>RateLimitFilter - asks the RateLimiter Service before forwarding</li>
- * </ol>
- * After that, the request reaches ProxyController, which forwards it to
- * the right downstream service over gRPC.
- */
 @Configuration
 public class FilterConfig {
-
     @Bean
     public FilterRegistrationBean<Filter> corsFilter(GatewayProperties properties) {
         return registration(new CorsFilter(corsConfigurationSource(properties)), 0);
@@ -88,9 +68,9 @@ public class FilterConfig {
 
     private CorsConfigurationSource corsConfigurationSource(GatewayProperties properties) {
         CorsConfiguration configuration = new CorsConfiguration();
-        // No origins allowed until arceus.gateway.cors.allowed-origins is
-        // configured - never fall back to "*" here, since allowCredentials
-        // is true (the Authorization header rides along with every call).
+        // No origins allowed until arceus.gateway.cors.allowed-origins is configured - never fall
+        // back to "*" here, since allowCredentials is true (the Authorization header rides along
+        // with every call).
         configuration.setAllowedOrigins(properties.cors() == null ? List.of() : properties.cors().originsOrEmpty());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "X-API-Key", "Content-Type", "X-Request-Id"));

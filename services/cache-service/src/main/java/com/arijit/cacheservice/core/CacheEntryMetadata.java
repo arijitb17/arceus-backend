@@ -9,13 +9,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Small companion record stored as a Redis hash next to every entry's data
- * key. Exists because a bare GET-by-key has no other way to know which
- * native structure to read from, how the bytes were serialized/compressed,
- * or (for {@link TtlPolicy#SLIDING}) how many seconds to re-arm the TTL for
- * on each access.
- */
 public record CacheEntryMetadata(
         CacheDataType type,
         SerializationFormat serialization,

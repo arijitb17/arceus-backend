@@ -21,10 +21,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <!-- Pinned explicitly: something in this module's dependency tree
-             (likely spring-boot-starter-mail) pulls an older, conflicting
-             Jackson version transitively. An explicit declaration here wins
-             over any transitive one, regardless of where that came from. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -36,16 +32,11 @@
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
-        <!-- gRPC server: exposes NotificationGatewayService so the Arceus Gateway
-             can forward requests here without a REST hop over the network. -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-server-spring-boot-starter</artifactId>
             <version>${grpc-spring.version}</version>
         </dependency>
-        <!-- gRPC client: calls scheduler-service to register the recurring
-             notification-retry job instead of running its own @Scheduled
-             poll loop - see scheduler.RetryJobRegistrar. -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-client-spring-boot-starter</artifactId>
@@ -78,9 +69,6 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-        <!-- Own database: notification templates + delivery history.
-             Per the platform rule "services never access another service's
-             database", this is a separate schema from auth-service's. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -102,7 +90,6 @@
             <version>2.8.5</version>
         </dependency>
 
-        <!-- Reads the same root .env as auth-service -->
         <dependency>
             <groupId>me.paulschwarz</groupId>
             <artifactId>springboot3-dotenv</artifactId>

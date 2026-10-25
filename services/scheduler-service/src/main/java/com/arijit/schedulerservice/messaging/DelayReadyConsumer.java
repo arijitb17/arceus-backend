@@ -9,19 +9,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/**
- * Consumes {@link DelayNudgeMessage}s once their TTL expires -
- * "Consume Events: Delayed execution". Just asks JobDispatchService to try
- * claiming the job right now instead of waiting for the next poll tick;
- * if the job somehow isn't due yet (clock skew) or was already claimed by
- * the poller in the meantime, tryClaimAndExecuteNow is a safe no-op
- * either way.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class DelayReadyConsumer {
-
     private final JobDispatchService dispatchService;
 
     @RabbitListener(queues = SchedulerMessagingTopology.DELAY_READY_QUEUE)

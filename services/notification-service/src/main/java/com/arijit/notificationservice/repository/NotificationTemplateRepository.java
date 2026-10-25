@@ -13,10 +13,7 @@ public interface NotificationTemplateRepository extends JpaRepository<Notificati
     Optional<NotificationTemplate> findByChannelAndCode(NotificationChannel channel, String code);
     boolean existsByChannelAndCode(NotificationChannel channel, String code);
 
-    // Dispatch/retry should only ever pick up a template that's actively
-    // enabled - see NotificationDispatchService.
     Optional<NotificationTemplate> findByChannelAndCodeAndActiveTrue(NotificationChannel channel, String code);
 
-    // Backs the admin template-listing endpoint, optionally scoped to one channel.
     Page<NotificationTemplate> findByChannel(NotificationChannel channel, Pageable pageable);
 }

@@ -5,7 +5,6 @@ grpc:
   server:
     port: ${CACHE_GRPC_PORT:9085}
   client:
-    # Used by scheduler.SweepJobRegistrar to register the recurring cache-sweep job.
     scheduler:
       address: static://${SCHEDULER_HOST:localhost}:${SCHEDULER_GRPC_PORT:9086}
       negotiation-type: plaintext
@@ -29,50 +28,30 @@ management:
   endpoints:
     web:
       exposure:
-        # 'metrics' + show-details below are what let monitoring-service's
-        # ServiceHealthCollector/ServiceMetricsCollector see this service's
-        # db/redis/rabbit component breakdown and JVM/CPU/request metrics.
         include: health,info,metrics
   endpoint:
     health:
       show-details: always
 
-# --- Arceus Cache Service specific configuration -----------------------
 arceus:
   cache:
-    # Connection pool for the shared Redis instance every namespace lives in.
     pool:
       max-active: ${CACHE_POOL_MAX_ACTIVE:16}
       max-idle: ${CACHE_POOL_MAX_IDLE:8}
       min-idle: ${CACHE_POOL_MIN_IDLE:0}
       max-wait-millis: ${CACHE_POOL_MAX_WAIT_MS:2000}
 
-    # Applied when a request sets ttlPolicy=CUSTOM without its own ttlSeconds,
-    # and as the fallback for any write that specifies no TTL policy at all
-    # but also isn't explicitly NO_EXPIRY. 0 or less means "no default -
-    # caller must specify".
     default-ttl-seconds: ${CACHE_DEFAULT_TTL_SECONDS:3600}
 
-    # Default serialization format (JSON | STRING | BINARY) when a request
-    # doesn't specify one.
     default-serialization: ${CACHE_DEFAULT_SERIALIZATION:JSON}
 
-    # Reject any single value (post-serialization, pre-compression) larger
-    # than this. Keeps one oversized object from starving Redis memory that
-    # every other namespace shares.
-    max-object-size-bytes: ${CACHE_MAX_OBJECT_SIZE_BYTES:5242880} # 5 MiB
+    max-object-size-bytes: ${CACHE_MAX_OBJECT_SIZE_BYTES:5242880}
 
     compression:
       enabled: ${CACHE_COMPRESSION_ENABLED:true}
-      # Values at or above this size are gzip-compressed automatically even
-      # if the caller didn't ask for it; callers can also force it per
-      # request with "compress": true regardless of size.
-      auto-threshold-bytes: ${CACHE_COMPRESSION_AUTO_THRESHOLD_BYTES:8192} # 8 KiB
+      auto-threshold-bytes: ${CACHE_COMPRESSION_AUTO_THRESHOLD_BYTES:8192}
 
     namespaces:
-      # Logical namespaces every operation must belong to. Keeps "auth:*",
-      # "session:*", etc. from colliding and gives eviction-by-namespace a
-      # safe, well-known set of prefixes to operate on.
       allowed:
         - auth
         - session
@@ -81,34 +60,18 @@ arceus:
         - notification
         - ratelimit
         - featureflag
-        # For demo/index.html's Cache module - a real project's own
-        # namespaces would go here the same way, chosen deliberately
-        # rather than left wide open (see allow-unlisted below for why
-        # this is an allow-list at all).
         - demo
-      # When true, namespaces outside the allow-list above are still
-      # accepted (useful in early development). Keep false anywhere this
-      # service is shared across teams/services.
       allow-unlisted: ${CACHE_ALLOW_UNLISTED_NAMESPACES:false}
 
-    # "Clean cache" scheduled job - see service.CacheSweepService.
     sweep:
-      no-expiry-stale-after-seconds: ${CACHE_SWEEP_NO_EXPIRY_STALE_AFTER_SECONDS:2592000} # 30 days
+      no-expiry-stale-after-seconds: ${CACHE_SWEEP_NO_EXPIRY_STALE_AFTER_SECONDS:2592000}
 
     internal:
-      # Shared secret scheduler-service's HTTP_CALLBACK executor presents
-      # as ?token= when it POSTs to /internal/cache/sweep - see
-      # SweepCallbackController / SweepJobRegistrar.
       api-token: ${CACHE_INTERNAL_API_TOKEN:changeme-cache-internal-token}
-      # Must be reachable from scheduler-service's pod/host, not just this service's own network.
       callback-base-url: ${CACHE_CALLBACK_BASE_URL:http://localhost:8085}
 
     scheduling:
-      # How often scheduler-service fires the sweep.
-      sweep-interval-ms: ${CACHE_SWEEP_INTERVAL_MS:86400000} # 24 hours
-      # x-internal-token this service must present when it calls
-      # scheduler-service's gRPC API - see config.GrpcClientConfig. Must
-      # match scheduler-service's own arceus.scheduler.internal.api-token exactly.
+      sweep-interval-ms: ${CACHE_SWEEP_INTERVAL_MS:86400000}
       scheduler-token: ${SCHEDULER_INTERNAL_API_TOKEN:changeme-scheduler-internal-token}
 
 logging:

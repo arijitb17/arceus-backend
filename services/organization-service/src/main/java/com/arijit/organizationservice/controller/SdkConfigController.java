@@ -12,12 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.security.Principal;
 import java.util.UUID;
 
-/** See SdkConfigService's javadoc - architecture design §9. */
 @RestController
 @RequestMapping("/organizations/{organizationId}/projects/{projectId}/environments/{environment}/sdk-config")
 @RequiredArgsConstructor
 public class SdkConfigController {
-
     private final SdkConfigService sdkConfigService;
 
     @GetMapping

@@ -11,22 +11,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/**
- * Every read endpoint (GET /health, /services, /metrics, /alerts,
- * /dashboard, /stats) is available to any authenticated caller - "Read-only
- * metrics for most users" per the spec. Alert rule mutation
- * (POST/PUT/DELETE /alerts/**) additionally requires ROLE_ADMIN, enforced
- * via {@code @PreAuthorize} on AlertController - "Admin-only alert
- * management". Authentication itself is established by either
- * {@link RoleHeaderAuthFilter} (human/admin callers arriving via the
- * Gateway) or {@link InternalTokenAuthFilter} (other platform services).
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-
     private final MonitoringProperties properties;
 
     @Bean

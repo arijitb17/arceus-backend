@@ -9,19 +9,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/**
- * Notification history includes recipient emails/phone numbers and message
- * content - not something any authenticated user should be able to browse,
- * only admins. This wires up {@link RoleHeaderAuthFilter} +
- * {@code @EnableMethodSecurity} so {@code @PreAuthorize("hasRole('ADMIN')")}
- * on NotificationController is actually enforced, instead of the endpoint
- * being wide open to anyone with a valid token for any account.
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -30,9 +21,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        // scheduler-service's HTTP_CALLBACK executor can't attach a role
-                        // header - RetryCallbackController checks its own ?token= instead,
-                        // same pattern as deployment-service's DeploymentCallbackController.
                         .requestMatchers("/internal/notifications/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new RoleHeaderAuthFilter(), UsernamePasswordAuthenticationFilter.class);

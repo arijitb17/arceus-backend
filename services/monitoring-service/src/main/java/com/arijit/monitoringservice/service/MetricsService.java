@@ -18,7 +18,6 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class MetricsService {
-
     private static final int DEFAULT_HISTORY_LIMIT = 20;
 
     private final LatestStateCache latestStateCache;

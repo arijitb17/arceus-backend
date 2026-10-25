@@ -9,7 +9,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MetricParsingTest {
-
     @Test
     void firstMeasurementValueReadsSingleValueMeasurement() {
         Map<String, Object> body = Map.of(

@@ -1,11 +1,5 @@
 name: arceus-platform
 
-# One-command local demo: `docker compose up --build`, then open
-# http://localhost:3000 (portal) or http://localhost:8090/swagger-ui.html
-# (gateway). Credentials/secrets below are dummy demo values, not for
-# production use - see .env.example if you want to override any of them
-# (this file already has sane defaults baked in so it runs with zero setup).
-
 x-jdbc-env: &jdbc-env
   DB_HOST: postgres
   DB_PORT: 5432
@@ -25,7 +19,6 @@ x-rabbitmq-env: &rabbitmq-env
   RABBITMQ_VHOST: /
 
 services:
-  # ---------------------------------------------------------------- infra --
   postgres:
     image: postgres:16-alpine
     environment:
@@ -57,14 +50,13 @@ services:
     image: rabbitmq:3.13-management-alpine
     ports:
       - "5672:5672"
-      - "15672:15672" # management UI - guest/guest
+      - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  # ------------------------------------------------------------ services --
   auth-service:
     build:
       context: .

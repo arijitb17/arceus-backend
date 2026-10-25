@@ -12,7 +12,6 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RetryPolicyServiceTest {
-
     private final SchedulerProperties properties = new SchedulerProperties(
             new SchedulerProperties.Poll(1000, 50),
             new SchedulerProperties.Worker(10, 50, 500),
@@ -64,16 +63,16 @@ class RetryPolicyServiceTest {
     @Test
     void exponentialBackoffGrowsWithRetryCount() {
         Job job = jobWith(0, 5, 1000, 2.0, true);
-        assertEquals(1000, retryPolicyService.nextDelayMs(job)); // 1000 * 2^0
+        assertEquals(1000, retryPolicyService.nextDelayMs(job));
         job.setRetryCount(1);
-        assertEquals(2000, retryPolicyService.nextDelayMs(job)); // 1000 * 2^1
+        assertEquals(2000, retryPolicyService.nextDelayMs(job));
         job.setRetryCount(3);
-        assertEquals(8000, retryPolicyService.nextDelayMs(job)); // 1000 * 2^3
+        assertEquals(8000, retryPolicyService.nextDelayMs(job));
     }
 
     @Test
     void exponentialBackoffIsCappedByMaxBackoffMs() {
-        Job job = jobWith(20, 30, 1000, 2.0, true); // 1000 * 2^20 would be enormous
+        Job job = jobWith(20, 30, 1000, 2.0, true);
         assertEquals(properties.retry().maxBackoffMs(), retryPolicyService.nextDelayMs(job));
     }
 }

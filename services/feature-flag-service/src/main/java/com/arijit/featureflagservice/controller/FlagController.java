@@ -21,26 +21,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * REST surface matching the spec's endpoint list exactly:
- * {@code POST/GET/GET-by-key/PUT/DELETE /flags}, {@code POST
- * /flags/{key}/enable}, {@code POST /flags/{key}/disable}, {@code GET
- * /flags/history}. Since a key may have up to one row per {@link
- * Environment} (see FeatureFlag's Javadoc), every per-key operation takes
- * an {@code environment} query parameter, defaulting to {@code GLOBAL}
- * for the common "one flag, one value everywhere" case so the common path
- * doesn't need the query parameter at all.
- * <p>
- * Every method here is a thin adapter over {@link FlagService} - no
- * business logic lives in this class, which is also what keeps
- * FeatureFlagGrpcServiceImpl's behavior identical to this REST surface
- * for the same operations.
- */
 @RestController
 @RequestMapping("/flags")
 @RequiredArgsConstructor
 public class FlagController {
-
     private final FlagService flagService;
     private final FlagValueCodec valueCodec;
     private final FlagAuditLogRepository auditLogRepository;

@@ -11,21 +11,10 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-/**
- * Registers the recurring "cache-sweep" job with scheduler-service once, on
- * startup - see CacheSweepService's Javadoc for what it does.
- * <p>
- * scheduler-service has no "create or update" semantics for ScheduleJob -
- * calling it twice with the same name creates two separate recurring jobs.
- * So this checks ListJobs for an existing non-terminal job with the same
- * name first, and only registers a new one if none is found - safe to run
- * on every restart/redeploy.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class SweepJobRegistrar implements ApplicationRunner {
-
     private static final String JOB_NAME = "cache-sweep";
 
     private final SchedulerGrpcServiceGrpc.SchedulerGrpcServiceBlockingStub schedulerStub;

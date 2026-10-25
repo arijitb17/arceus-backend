@@ -8,24 +8,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/**
- * True sliding window, not the fixed-window approximation used by the
- * in-process arceus-ratelimit library: each allowed call is recorded as a
- * member of a Redis sorted set with its timestamp (in millis) as the score.
- * A check removes everything older than `windowSeconds` ago, then counts
- * what's left. This gives an exact "at most `limit` calls in any trailing
- * `windowSeconds` window" guarantee, at the cost of a small sorted set per
- * key instead of one integer - worth it for a dedicated rate-limit service
- * where accuracy is the whole point.
- *
- * All of it (trim + count + conditionally add + set TTL) happens in one Lua
- * script so concurrent callers for the same key can't race each other into
- * both thinking they have room.
- */
 @Component
 @RequiredArgsConstructor
 public class SlidingWindowLimiter {
-
     private final StringRedisTemplate redisTemplate;
 
     private static final DefaultRedisScript<List> SCRIPT = new DefaultRedisScript<>("""
@@ -52,7 +37,6 @@ public class SlidingWindowLimiter {
         String redisKey = "ratelimit:sliding:" + key;
         long now = System.currentTimeMillis();
         long windowMillis = windowSeconds * 1000L;
-        // Unique member per call so concurrent requests in the same millisecond don't collide in the ZSET.
         String member = now + ":" + java.util.UUID.randomUUID();
 
         @SuppressWarnings("unchecked")

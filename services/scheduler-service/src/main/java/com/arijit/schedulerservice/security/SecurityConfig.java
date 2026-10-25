@@ -11,20 +11,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/**
- * Every job-management endpoint requires an authenticated caller - either
- * the shared internal token (see InternalTokenAuthFilter, for other
- * platform services) or {@code X-User-Email}/{@code X-User-Roles} headers
- * set by the Gateway (see RoleHeaderAuthFilter, for human/admin callers).
- * Only /health and the OpenAPI docs are open, matching every other
- * service's pattern of leaving observability/docs endpoints unauthenticated.
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-
     private final SchedulerProperties properties;
 
     @Bean

@@ -12,19 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
-/**
- * Health/metric snapshots accumulate one row per service per polling cycle
- * forever unless something prunes them - at the default 15s interval that's
- * ~5,760 rows/service/day. This runs once a day and deletes anything older
- * than {@code arceus.monitoring.history.retention-days}, keeping Health
- * History/Metrics History bounded without needing a separate archival
- * service.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class RetentionCleanupService {
-
     private final ServiceHealthSnapshotRepository healthRepository;
     private final ServiceMetricSnapshotRepository metricRepository;
 

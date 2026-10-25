@@ -6,6 +6,7 @@ import com.arijit.arceus.grpc.gateway.HttpRequestMessage;
 import com.arijit.arceus.grpc.gateway.HttpResponseMessage;
 import com.arijit.arceus.grpc.gateway.PingRequest;
 import com.arijit.arceus.grpc.gateway.PingResponse;
+import lombok.extern.slf4j.Slf4j;
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,19 +21,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 
-/**
- * This is the gRPC face of auth-service that the Arceus Gateway talks to.
- * Rather than re-implementing every /api/auth/** endpoint as its own RPC
- * (register, login, verify-otp, refresh, change-password, ...), it forwards
- * the request as-is to this same service's REST controllers over a loopback
- * HTTP call. That means AuthController, SecurityConfig, and the JWT filter
- * stay the single source of truth for auth behavior - this class is purely
- * a transport adapter between "gRPC from the Gateway" and "REST inside this
- * service."
- */
+@Slf4j
 @GrpcService
 public class AuthGatewayGrpcService extends AuthGatewayServiceGrpc.AuthGatewayServiceImplBase {
-
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${server.port}")
@@ -44,8 +35,7 @@ public class AuthGatewayGrpcService extends AuthGatewayServiceGrpc.AuthGatewaySe
             responseObserver.onNext(doForward(request));
             responseObserver.onCompleted();
         } catch (RestClientResponseException ex) {
-            // Downstream REST controller returned a non-2xx response (e.g. 401, 404, 409) -
-            // relay it as-is rather than surfacing it as a gRPC transport error.
+            log.debug("Forwarded {} {} returned status {}", request.getMethod(), request.getPath(), ex.getStatusCode().value());
             responseObserver.onNext(HttpResponseMessage.newBuilder()
                     .setStatus(ex.getStatusCode().value())
                     .addAllHeaders(toProtoHeaders(ex.getResponseHeaders()))
@@ -53,6 +43,7 @@ public class AuthGatewayGrpcService extends AuthGatewayServiceGrpc.AuthGatewaySe
                     .build());
             responseObserver.onCompleted();
         } catch (Exception ex) {
+            log.error("Failed to forward {} {} to local auth-service API", request.getMethod(), request.getPath(), ex);
             responseObserver.onNext(HttpResponseMessage.newBuilder()
                     .setStatus(500)
                     .setBody(ByteString.copyFromUtf8(

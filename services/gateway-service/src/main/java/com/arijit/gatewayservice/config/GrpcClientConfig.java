@@ -18,25 +18,16 @@ import org.springframework.context.annotation.Configuration;
 import net.devh.boot.grpc.client.channelfactory.GrpcChannelFactory;
 
 /**
- * Wires up one blocking stub per downstream service, each bound to the
- * named channel configured under spring.grpc.client.* in application.yml.
- * Keeping the channel name ("auth", "notification", "ratelimit",
- * "feature-flag", "monitoring", "scheduler", "cache") as the single point
- * of truth for where each service lives means routing code never
- * hardcodes a host/port.
- * <p>
- * auth/notification/ratelimit/cache trust the Gateway as their edge and
- * enforce no gRPC-level token. monitoring/scheduler/feature-flag are
- * different: each runs a {@code @GrpcGlobalServerInterceptor} that
- * requires {@code x-internal-token} on every RPC but {@code Ping} -
- * including their *Gateway RPC (Forward), not just their domain-specific
- * ones, since the interceptor is global to the whole gRPC server. So all
- * three of those stubs, not just the feature-flag evaluation one used by
- * RouteFlagGatewayClient, need their target's token attached.
+ * Keeping the channel name ("auth", "notification", "ratelimit", "feature-flag", "monitoring",
+ * "scheduler", "cache") as the single point of truth for where each service lives means routing
+ * code never hardcodes a host/port. auth/notification/ratelimit/cache trust the Gateway as their
+ * edge and enforce no gRPC-level token. monitoring/scheduler/feature-flag are different: each runs
+ * a {@code @GrpcGlobalServerInterceptor} that requires {@code x-internal-token} on every RPC but
+ * {@code Ping} - including their *Gateway RPC (Forward), not just their domain-specific ones, since
+ * the interceptor is global to the whole gRPC server.
  */
 @Configuration
 public class GrpcClientConfig {
-
     private static final Metadata.Key<String> TOKEN_HEADER =
             Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER);
 
@@ -54,13 +45,6 @@ public class GrpcClientConfig {
         return AuthGatewayServiceGrpc.newBlockingStub(channels.createChannel("auth"));
     }
 
-    // Used by ApiKeyAuthFilter to authenticate X-API-Key requests - see
-    // ValidateApiKey's javadoc in apikey-provisioning.proto for why this
-    // needs a round-trip (a raw key only means anything once matched
-    // against its hash in auth-service's own table). Reuses the same
-    // "auth" channel as authGatewayStub above - one physical connection,
-    // two stub types, same pattern used everywhere else a service exposes
-    // more than one gRPC surface on one channel.
     @Bean
     public ApiKeyProvisioningGrpcServiceGrpc.ApiKeyProvisioningGrpcServiceBlockingStub apiKeyValidationStub(GrpcChannelFactory channels) {
         return ApiKeyProvisioningGrpcServiceGrpc.newBlockingStub(channels.createChannel("auth"));

@@ -33,8 +33,6 @@
     </properties>
 
     <dependencies>
-        <!-- gRPC server: exposes RateLimitGrpcService, the one call the Gateway
-             makes on every protected request before forwarding it onward. -->
         <dependency>
             <groupId>net.devh</groupId>
             <artifactId>grpc-server-spring-boot-starter</artifactId>

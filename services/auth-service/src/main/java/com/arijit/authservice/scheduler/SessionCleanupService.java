@@ -8,23 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
-/**
- * The "clean expired sessions" scheduled job - deletes every RefreshToken
- * row whose expiryDate has passed. Without this, expired refresh tokens
- * (already unusable - {@link com.arijit.authservice.entity.RefreshToken#isExpired()}
- * rejects them on every lookup) just accumulate in the table forever.
- * <p>
- * Invoked by scheduler-service's HTTP_CALLBACK executor via
- * SessionCleanupCallbackController, on a recurring job
- * SessionCleanupJobRegistrar registers once at startup - same delegation
- * notification-service uses for its own retry sweep (see
- * NotificationRetryScheduler's Javadoc for the platform-wide reasoning).
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class SessionCleanupService {
-
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional

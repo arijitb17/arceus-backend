@@ -9,21 +9,11 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 
-/**
- * Turns a {@link TtlPolicy} + its caller-supplied inputs into a single
- * "seconds from now, or no expiry" decision. Kept separate from
- * {@link CacheStoreService} because this is pure policy math with no Redis
- * access - straightforward to unit test on its own.
- */
 @Component
 @RequiredArgsConstructor
 public class CacheTtlService {
-
     private final CacheProperties cacheProperties;
 
-    /**
-     * @return seconds until expiry to apply now, or empty if the key should have no expiry
-     */
     public java.util.Optional<Long> resolveTtlSeconds(TtlPolicy policy, Long ttlSeconds, Instant absoluteExpireAt) {
         return switch (policy) {
             case NO_EXPIRY -> java.util.Optional.empty();

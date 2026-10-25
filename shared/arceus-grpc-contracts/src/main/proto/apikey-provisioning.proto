@@ -8,15 +8,6 @@ option java_outer_classname = "ApiKeyProvisioningProto";
 
 import "gateway.proto";
 
-// Lets organization-service's SDK config generation (architecture design
-// §9) get a usable PUBLIC key for a project+environment without owning
-// any key material itself - auth-service remains the only service that
-// ever creates, stores, or hands out a raw key (§7). Idempotent by
-// design: if an active PUBLIC key already exists for the project+
-// environment, this returns it as "not newly created" with no raw key
-// (auth-service never re-exposes an old key's plaintext - see ApiKey's
-// javadoc) rather than minting a second one every time SDK config is
-// regenerated.
 message GetOrCreateProjectPublicKeyRequest {
   string organization_id = 1;
   string project_id = 2;
@@ -26,11 +17,8 @@ message GetOrCreateProjectPublicKeyRequest {
 
 message GetOrCreateProjectPublicKeyResponse {
   bool created = 1;
-  // Only set when created=true - see the message-level comment above for why.
   string raw_key = 2;
   string key_prefix = 3;
-  // Set only on failure (e.g. caller isn't an org manager, project doesn't
-  // exist) - empty on success whether or not a new key was created.
   string error = 4;
 }
 
@@ -40,13 +28,6 @@ service ApiKeyProvisioningGrpcService {
   rpc Ping(arceus.gateway.PingRequest) returns (arceus.gateway.PingResponse);
 }
 
-// Called by the Gateway's ApiKeyAuthFilter for every request carrying an
-// X-API-Key header - the API-key equivalent of JwtVerificationService,
-// except a round-trip is unavoidable here: unlike a JWT (which the
-// Gateway verifies locally against a shared signing secret), a raw API
-// key only means anything once matched against its SHA-256 hash in
-// auth-service's own table (see ApiKey's javadoc) - there is no signature
-// to check locally.
 message ValidateApiKeyRequest {
   string raw_key = 1;
 }
@@ -54,15 +35,10 @@ message ValidateApiKeyRequest {
 message ValidateApiKeyResponse {
   bool valid = 1;
   string user_email = 2;
-  // Comma-separated, matching X-User-Roles' existing format (see
-  // RoleHeaderAuthFilter across every service).
   string roles = 3;
-  // The four below are empty for a platform-level key (organizationId is
-  // never empty for a valid key type check - see keyType) - see ApiKey's
-  // javadoc on what null/empty project scoping means.
   string organization_id = 4;
   string project_id = 5;
   string environment = 6;
-  string key_type = 7; // "" | "PUBLIC" | "SECRET"
-  string scopes = 8;   // "" means every enabled module
+  string key_type = 7;
+  string scopes = 8;
 }

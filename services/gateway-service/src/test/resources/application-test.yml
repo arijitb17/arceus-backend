@@ -1,15 +1,3 @@
-# Used only when tests run (@ActiveProfiles("test")). The Gateway has no
-# database of its own, so there's nothing to swap out for H2 here - this
-# only exists to supply a JWT_SECRET, since application.yml requires one
-# and none of the downstream gRPC services need to actually be running for
-# the context to load (channels connect lazily).
-#
-# spring.rabbitmq.* is overridden too: application.yml binds these to
-# ${RABBITMQ_HOST}/${RABBITMQ_PORT}/etc. with no defaults, and those env
-# vars aren't guaranteed to be present during `mvn test` the way they are
-# under spring-boot:run (see auth-service's application-test.yml for the
-# same fix, applied there first). Without this, RabbitProperties binding
-# fails trying to parse the literal unresolved placeholder string.
 spring:
   rabbitmq:
     host: localhost

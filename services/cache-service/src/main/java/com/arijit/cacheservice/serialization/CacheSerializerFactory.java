@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class CacheSerializerFactory {
-
     private final JsonCacheSerializer jsonCacheSerializer;
     private final StringCacheSerializer stringCacheSerializer;
     private final BinaryCacheSerializer binaryCacheSerializer;

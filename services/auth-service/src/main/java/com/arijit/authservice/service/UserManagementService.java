@@ -13,6 +13,8 @@ import com.arijit.authservice.exception.ApiException;
 import com.arijit.authservice.repository.RefreshTokenRepository;
 import com.arijit.authservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import com.arijit.arceus.events.logging.LogMasker;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,15 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-// Backs the admin-only /api/auth/users endpoints. Kept separate from
-// AuthService (which is about a user managing their OWN account) since the
-// authorization model is entirely different here - every method assumes
-// its caller has already been confirmed as ROLE_ADMIN by the controller's
-// @PreAuthorize, not by anything in here.
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserManagementService {
-
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -54,15 +51,13 @@ public class UserManagementService {
     public AdminUserResponse updateRoles(UUID id, UpdateRolesRequest request, String actingAdminEmail) {
         User user = findOrThrow(id);
 
-        // Guard against an admin locking themselves (or the last admin)
-        // out entirely. This is a coarse check, not full "last admin"
-        // accounting across the table, but it stops the single most
-        // common accidental self-lockout.
         if (user.getEmail().equalsIgnoreCase(actingAdminEmail) && !request.roles().contains(Role.ROLE_ADMIN)) {
+            log.warn("Role update rejected: admin userId={} tried to remove their own admin role", user.getId());
             throw new ApiException("You can't remove your own admin role", HttpStatus.BAD_REQUEST);
         }
 
         user.setRoles(request.roles());
+        log.info("User roles updated: userId={} roles={} by={}", user.getId(), request.roles(), LogMasker.email(actingAdminEmail));
         return AdminUserResponse.from(userRepository.save(user));
     }
 
@@ -71,19 +66,22 @@ public class UserManagementService {
         User user = findOrThrow(id);
 
         if (user.getEmail().equalsIgnoreCase(actingAdminEmail) && !request.enabled()) {
+            log.warn("Status update rejected: admin userId={} tried to disable their own account", user.getId());
             throw new ApiException("You can't disable your own account", HttpStatus.BAD_REQUEST);
         }
 
         user.setAccountEnabled(request.enabled());
+        log.info("User account status updated: userId={} enabled={} by={}", user.getId(), request.enabled(), LogMasker.email(actingAdminEmail));
         return AdminUserResponse.from(userRepository.save(user));
     }
 
     private User findOrThrow(UUID id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ApiException("No user found with id " + id, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.debug("User lookup failed: id={}", id);
+                    return new ApiException("No user found with id " + id, HttpStatus.NOT_FOUND);
+                });
     }
-
-    // ---------- Sessions (gap #3: "no session-listing/revocation endpoint") ----------
 
     public SessionPageResponse listSessions(UUID userId, int page, int size) {
         User user = findOrThrow(userId);
@@ -92,22 +90,22 @@ public class UserManagementService {
         return SessionPageResponse.from(result.map(SessionResponse::from));
     }
 
-    // No self-lockout guard here on purpose - unlike roles/status, revoking a
-    // session only kills the refresh token. The admin's own access token
-    // (already issued, already in their browser) keeps working until it
-    // naturally expires, so an admin can't accidentally lock themselves out
-    // of the current request the way they could with roles/status.
     @Transactional
     public void revokeSession(UUID userId, UUID sessionId) {
         User user = findOrThrow(userId);
         RefreshToken session = refreshTokenRepository.findByIdAndUser(sessionId, user)
-                .orElseThrow(() -> new ApiException("No session " + sessionId + " for this user", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("Session revoke rejected: session {} not found for userId={}", sessionId, userId);
+                    return new ApiException("No session " + sessionId + " for this user", HttpStatus.NOT_FOUND);
+                });
         refreshTokenRepository.delete(session);
+        log.info("Session revoked by admin: userId={} sessionId={}", userId, sessionId);
     }
 
     @Transactional
     public void revokeAllSessions(UUID userId) {
         User user = findOrThrow(userId);
         refreshTokenRepository.deleteByUser(user);
+        log.info("All sessions revoked by admin: userId={}", userId);
     }
 }

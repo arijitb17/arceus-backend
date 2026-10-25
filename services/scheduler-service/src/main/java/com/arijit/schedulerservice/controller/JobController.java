@@ -17,18 +17,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-/**
- * The REST face every Arceus service can call instead of implementing its
- * own {@code @Scheduled} methods - see the module Javadoc. Identical
- * behavior to SchedulerGrpcServiceImpl; pick REST or gRPC per caller
- * preference, not per capability.
- */
 @RestController
 @RequestMapping("/jobs")
 @RequiredArgsConstructor
 @Tag(name = "Jobs", description = "Register, inspect, and manage scheduled/background jobs")
 public class JobController {
-
     private final JobService jobService;
     private final JobExecutionHistoryRepository historyRepository;
 
@@ -65,7 +58,7 @@ public class JobController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        jobService.getOrThrow(id); // 404 if the job itself doesn't exist, before returning a (possibly empty) history page
+        jobService.getOrThrow(id);
         var pageable = PageRequest.of(page, Math.min(size, 100));
         var results = historyRepository.findByJobIdOrderByStartedAtDesc(id, pageable).map(JobHistoryResponse::from);
         return ResponseEntity.ok(PagedResponse.of(results));

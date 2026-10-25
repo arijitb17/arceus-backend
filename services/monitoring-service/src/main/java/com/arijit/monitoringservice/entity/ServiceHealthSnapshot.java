@@ -18,17 +18,6 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * One row per health check {@link com.arijit.monitoringservice.service.ServicePollingService}
- * performs against one monitored service (see the platform's Health Checks
- * spec: Service Status, Database Status, Redis Status, RabbitMQ Status,
- * gRPC Connectivity, API Availability, Response Time, Uptime - every field
- * below maps to one of those). Rows accumulate to form each service's
- * health history; {@link com.arijit.monitoringservice.service.LatestStateCache}
- * separately holds just the newest one per service for fast dashboard reads
- * so GET /services doesn't have to do a MAX(checkedAt) query per service on
- * every request.
- */
 @Entity
 @Table(name = "service_health_snapshots",
         indexes = {
@@ -40,7 +29,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ServiceHealthSnapshot {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -71,10 +59,8 @@ public class ServiceHealthSnapshot {
     @Column(nullable = false)
     private boolean apiAvailable;
 
-    /** Wall-clock time this health check itself took, in milliseconds. */
     private long responseTimeMs;
 
-    /** Reported by the monitored service via process.uptime (Actuator), 0 if unavailable. */
     private long uptimeSeconds;
 
     @Column(length = 50)

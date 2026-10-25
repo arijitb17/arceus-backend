@@ -35,19 +35,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
-/**
- * gRPC face of monitoring-service - every RPC calls straight into the same
- * service layer (PlatformHealthService, MetricsService, DashboardService,
- * AlertEventRepository) the REST controllers use, so REST and gRPC callers
- * see identical data. See monitoring.proto for the wire shapes this adapts
- * to/from, and that file's Javadoc for why alert-rule mutation stays
- * REST-only.
- */
 @Slf4j
 @GrpcService
 @RequiredArgsConstructor
 public class MonitoringGrpcServiceImpl extends MonitoringGrpcServiceGrpc.MonitoringGrpcServiceImplBase {
-
     private final PlatformHealthService platformHealthService;
     private final MetricsService metricsService;
     private final DashboardService dashboardService;

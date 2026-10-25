@@ -11,17 +11,10 @@ import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Developer-facing side of the module provisioning workflow. enable()/
- * disable() resolve straight through to a terminal ACTIVE/FAILED/DISABLED
- * status in the same request - see ModuleEnablementService's javadoc for
- * how.
- */
 @RestController
 @RequestMapping("/organizations/{organizationId}/projects/{projectId}/environments/{environment}/modules")
 @RequiredArgsConstructor
 public class ModuleEnablementController {
-
     private final ModuleEnablementService moduleEnablementService;
 
     @GetMapping

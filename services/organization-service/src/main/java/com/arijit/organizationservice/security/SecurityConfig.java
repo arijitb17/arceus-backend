@@ -9,18 +9,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/**
- * Any authenticated platform user (ROLE_USER or ROLE_ADMIN) may call this
- * service - authorization within an organization/project is enforced at
- * the service-method level via OrganizationMember lookups (see
- * OrgAccessGuard), not via a coarse @PreAuthorize role check the way
- * audit-service restricts its whole controller to ROLE_ADMIN.
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http

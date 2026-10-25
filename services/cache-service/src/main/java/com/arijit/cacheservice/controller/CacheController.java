@@ -15,22 +15,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * REST face of cache-service. Every method delegates straight into
- * {@link CacheStoreService}/{@link CacheEvictionService}/{@link CacheStatsService} -
- * this class is only responsible for path/body binding and HTTP status codes.
- */
 @RestController
 @RequestMapping("/cache")
 @RequiredArgsConstructor
 @Tag(name = "Cache", description = "Namespaced distributed cache: Set/Get/Delete/Update, TTL, increment, hash fields, bulk ops, eviction, stats")
 public class CacheController {
-
     private final CacheStoreService cacheStoreService;
     private final CacheEvictionService cacheEvictionService;
     private final CacheStatsService cacheStatsService;
-
-    // ---- Set / Get / Update / Delete ---------------------------------
 
     @PostMapping
     @Operation(summary = "Create or overwrite a cache entry (Set Value)")
@@ -60,8 +52,6 @@ public class CacheController {
         return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
-    // ---- Exists / TTL / Expire ----------------------------------------
-
     @GetMapping("/{namespace}/{key}/exists")
     @Operation(summary = "Check whether a key exists")
     public ResponseEntity<ExistsResponse> exists(@PathVariable String namespace, @PathVariable String key) {
@@ -82,8 +72,6 @@ public class CacheController {
         return applied ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
     }
 
-    // ---- Increment / Decrement -----------------------------------------
-
     @PostMapping("/{namespace}/{key}/increment")
     @Operation(summary = "Atomically increment a numeric STRING entry (creates it at `delta` if absent)")
     public ResponseEntity<NumericResponse> increment(@PathVariable String namespace, @PathVariable String key,
@@ -101,8 +89,6 @@ public class CacheController {
         long value = cacheStoreService.incrementBy(namespace, key, -delta);
         return ResponseEntity.ok(new NumericResponse(namespace, key, value));
     }
-
-    // ---- Hash field operations ------------------------------------------
 
     @PutMapping("/{namespace}/{key}/hash")
     @Operation(summary = "Set a single field on a HASH entry")
@@ -130,8 +116,6 @@ public class CacheController {
         return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
-    // ---- Bulk operations --------------------------------------------------
-
     @PostMapping("/bulk/get")
     @Operation(summary = "Fetch multiple keys (across namespaces) in one call")
     public ResponseEntity<BulkGetResponse> bulkGet(@Valid @RequestBody BulkGetRequest request) {
@@ -143,8 +127,6 @@ public class CacheController {
     public ResponseEntity<BulkPutResponse> bulkPut(@Valid @RequestBody BulkPutRequest request) {
         return ResponseEntity.ok(cacheStoreService.bulkPut(request.entries()));
     }
-
-    // ---- Eviction -----------------------------------------------------
 
     @DeleteMapping("/namespace/{namespace}")
     @Operation(summary = "Evict every key in a namespace")
@@ -159,8 +141,6 @@ public class CacheController {
         long count = cacheEvictionService.evictPattern(pattern);
         return ResponseEntity.ok(new EvictionResponse("pattern:" + pattern, count));
     }
-
-    // ---- Stats ----------------------------------------------------------
 
     @GetMapping("/stats")
     @Operation(summary = "Hit/miss/eviction counters plus live Redis-level stats")

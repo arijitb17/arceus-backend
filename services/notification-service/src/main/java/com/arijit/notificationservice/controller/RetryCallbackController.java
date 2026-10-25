@@ -12,22 +12,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * The receiving end of scheduler-service's recurring "notification-retry"
- * job (registered by scheduler.RetryJobRegistrar) - scheduler-service's
- * HTTP_CALLBACK executor POSTs here on every fire. Left open at the Spring
- * Security filter-chain level (see SecurityConfig) and checks the
- * {@code token} query parameter itself instead, same reasoning as
- * deployment-service's DeploymentCallbackController: scheduler-service's
- * callback executor can't attach a custom auth header per job, only a URL
- * it POSTs to.
- */
 @RestController
 @RequestMapping("/internal/notifications")
 @RequiredArgsConstructor
 @Slf4j
 public class RetryCallbackController {
-
     private final NotificationRetryScheduler retryScheduler;
 
     @Value("${arceus.notification.internal.api-token}")

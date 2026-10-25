@@ -9,25 +9,11 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Base64;
+import lombok.extern.slf4j.Slf4j;
 
-/**
- * AES-256-GCM encryption for {@link com.arijit.organizationservice.entity.Secret#encryptedValue}.
- * <p>
- * <b>v1 scope note</b> (see the architecture design's §8 and §12 "what's
- * left"): this encrypts every secret directly under one platform-wide KEK
- * ({@code arceus.organization.secrets.kek}, base64 AES-256 key, supplied
- * the same way auth-service supplies {@code JWT_SECRET} - an env var, not
- * stored in the DB). The design doc describes a fuller envelope-encryption
- * scheme (a distinct Data Encryption Key per project+environment, itself
- * wrapped by this KEK) so a KEK rotation doesn't require re-encrypting
- * every secret in the table one at a time - that per-project DEK layer is
- * intentionally deferred rather than half-built here; {@code
- * encryptionKeyVersion} already exists on the entity as the seam that
- * layer will slot into ("kek-v1" today, a DEK id once it exists).
- */
+@Slf4j
 @Component
 public class SecretCryptoService {
-
     private static final int GCM_TAG_BITS = 128;
     private static final int GCM_IV_BYTES = 12;
     private static final String KEY_VERSION = "kek-v1";
@@ -57,6 +43,7 @@ public class SecretCryptoService {
             buffer.put(iv).put(ciphertext);
             return Base64.getEncoder().encodeToString(buffer.array());
         } catch (Exception e) {
+            log.error("Secret encryption failed", e);
             throw new IllegalStateException("Secret encryption failed", e);
         }
     }
@@ -75,6 +62,7 @@ public class SecretCryptoService {
             byte[] plaintext = cipher.doFinal(ciphertext);
             return new String(plaintext, java.nio.charset.StandardCharsets.UTF_8);
         } catch (Exception e) {
+            log.error("Secret decryption failed - wrong key version or corrupted ciphertext?", e);
             throw new IllegalStateException("Secret decryption failed", e);
         }
     }

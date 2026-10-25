@@ -8,6 +8,7 @@ import com.arijit.authservice.exception.ApiException;
 import com.arijit.authservice.repository.PermissionRepository;
 import com.arijit.authservice.repository.RoleDefinitionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,27 +22,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-// Backs the admin-only /api/auth/permissions and /api/auth/roles endpoints -
-// answers gap #2 from the backend-gaps doc ("no RBAC/permission model
-// beyond two hardcoded roles"). Every method here assumes the caller was
-// already confirmed ROLE_ADMIN by the controller's @PreAuthorize.
-//
-// Scope note: this does NOT change what Spring Security checks on a
-// request (still the plain Role enum via hasRole(...)) - that boundary is
-// deliberately left alone since rewiring authentication itself across every
-// service would be a much larger, riskier change than what "add a
-// Permissions module" actually calls for. What this DOES give you is a
-// real, admin-editable permission catalog and a per-role assignment table
-// that any service (or the frontend) can read to drive finer-grained
-// authorization decisions than "admin or not".
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RbacService {
-
     private final PermissionRepository permissionRepository;
     private final RoleDefinitionRepository roleDefinitionRepository;
-
-    // ---------- Permissions ----------
 
     public PermissionPageResponse listPermissions(String category, int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100),
@@ -61,6 +47,7 @@ public class RbacService {
     @Transactional
     public PermissionResponse createPermission(CreatePermissionRequest request) {
         if (permissionRepository.existsByCode(request.code())) {
+            log.warn("Permission create rejected: code '{}' already exists", request.code());
             throw new ApiException("A permission with code '" + request.code() + "' already exists", HttpStatus.CONFLICT);
         }
         Permission saved = permissionRepository.save(Permission.builder()
@@ -68,6 +55,7 @@ public class RbacService {
                 .category(request.category())
                 .description(request.description())
                 .build());
+        log.info("Permission created: id={} code={}", saved.getId(), saved.getCode());
         return PermissionResponse.from(saved);
     }
 
@@ -76,30 +64,29 @@ public class RbacService {
         Permission permission = findPermissionOrThrow(id);
         permission.setCategory(request.category());
         permission.setDescription(request.description());
+        log.info("Permission updated: id={} code={}", permission.getId(), permission.getCode());
         return PermissionResponse.from(permissionRepository.save(permission));
     }
 
     @Transactional
     public void deletePermission(UUID id) {
         Permission permission = findPermissionOrThrow(id);
-        // Detach from every role first - a ManyToMany join row referencing a
-        // deleted permission would otherwise leave roles with dangling
-        // references (and Hibernate would just silently drop them from the
-        // in-memory set next load, which is confusing to debug).
         for (RoleDefinition role : roleDefinitionRepository.findAllByOrderByRoleKeyAsc()) {
             if (role.getPermissions().remove(permission)) {
                 roleDefinitionRepository.save(role);
             }
         }
         permissionRepository.delete(permission);
+        log.info("Permission deleted: id={} code={}", permission.getId(), permission.getCode());
     }
 
     private Permission findPermissionOrThrow(UUID id) {
         return permissionRepository.findById(id)
-                .orElseThrow(() -> new ApiException("No permission found with id " + id, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.debug("Permission lookup failed: id={}", id);
+                    return new ApiException("No permission found with id " + id, HttpStatus.NOT_FOUND);
+                });
     }
-
-    // ---------- Roles ----------
 
     public List<RoleDefinitionResponse> listRoles() {
         return roleDefinitionRepository.findAllByOrderByRoleKeyAsc().stream()
@@ -116,26 +103,31 @@ public class RbacService {
         RoleDefinition role = findRoleOrThrow(roleKey);
         role.setName(request.name());
         role.setDescription(request.description());
+        log.info("Role details updated: role={}", roleKey);
         return RoleDefinitionResponse.from(roleDefinitionRepository.save(role));
     }
 
-    // Replaces the whole permission set in one call (not add/remove) so the
-    // frontend can drive this from a checklist UI without needing a diff.
     @Transactional
     public RoleDefinitionResponse updateRolePermissions(Role roleKey, UpdateRolePermissionsRequest request) {
         RoleDefinition role = findRoleOrThrow(roleKey);
 
         List<Permission> found = permissionRepository.findByIdIn(List.copyOf(request.permissionIds()));
         if (found.size() != request.permissionIds().size()) {
+            log.warn("Role permission update rejected: role={} requested={} found={}",
+                    roleKey, request.permissionIds().size(), found.size());
             throw new ApiException("One or more permission ids don't exist", HttpStatus.BAD_REQUEST);
         }
 
         role.setPermissions(new HashSet<>(found));
+        log.info("Role permissions replaced: role={} permissionCount={}", roleKey, found.size());
         return RoleDefinitionResponse.from(roleDefinitionRepository.save(role));
     }
 
     private RoleDefinition findRoleOrThrow(Role roleKey) {
         return roleDefinitionRepository.findByRoleKey(roleKey)
-                .orElseThrow(() -> new ApiException("No role definition for " + roleKey, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.debug("Role lookup failed: role={}", roleKey);
+                    return new ApiException("No role definition for " + roleKey, HttpStatus.NOT_FOUND);
+                });
     }
 }

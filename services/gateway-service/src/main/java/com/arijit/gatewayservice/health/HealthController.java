@@ -11,7 +11,6 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 public class HealthController {
-
     private final ServiceHealthChecker serviceHealthChecker;
 
     @GetMapping("/health")

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RolloutEvaluatorTest {
-
     private final RolloutEvaluator evaluator = new RolloutEvaluator();
 
     @Test
@@ -32,9 +31,6 @@ class RolloutEvaluatorTest {
 
     @Test
     void differentFlagsBucketTheSameKeyIndependently() {
-        // Not a strict guarantee for every possible key, but across many
-        // flag names for one fixed bucket key, inclusion shouldn't be
-        // identical for every single one - the flagKey salt is doing its job.
         String bucketKey = "user-42";
         boolean allSame = true;
         boolean first = evaluator.isIncluded(50, "flag-0", bucketKey);

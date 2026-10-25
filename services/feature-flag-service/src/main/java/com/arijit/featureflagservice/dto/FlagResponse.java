@@ -28,7 +28,6 @@ public record FlagResponse(
         Instant updatedAt,
         long version
 ) {
-    /** {@code decodedValue} comes from FlagValueCodec - this record has no codec of its own so it stays a pure data carrier. */
     public static FlagResponse from(FeatureFlag flag, Object decodedValue) {
         return new FlagResponse(
                 flag.getId(),

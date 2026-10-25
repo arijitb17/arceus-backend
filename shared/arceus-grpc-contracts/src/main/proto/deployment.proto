@@ -8,41 +8,28 @@ option java_outer_classname = "DeploymentProto";
 
 import "gateway.proto";
 
-// gRPC face of deployment-service - mirrors com.arijit.deploymentservice.dto.*
-// field-for-field, same convention as scheduler.proto/featureflag.proto, so
-// REST and gRPC callers see identical data.
-//
-// Only the RPCs the spec's "gRPC APIs" list actually asks for are exposed
-// here: CreateDeployment, DeployService, RollbackDeployment, GetDeployment,
-// ListDeployments, GetDeploymentHistory. Approve and Cancel are deliberately
-// REST-only - both are human-workflow actions (an approver clicking
-// "approve", an operator clicking "cancel"), same reasoning as
-// monitoring.proto keeping alert-rule mutation REST-only: this stays the
-// fast in-cluster path for the mostly-machine-driven parts of the
-// lifecycle, not a mirror of every REST endpoint.
-
 message Deployment {
   string id = 1;
   string service_name = 2;
   string service_version = 3;
   string docker_image = 4;
-  string environment = 5;          // DEVELOPMENT | TESTING | STAGING | PRODUCTION
-  string status = 6;               // CREATED | PENDING | APPROVED | DEPLOYING | RUNNING | FAILED | ROLLED_BACK | CANCELLED
+  string environment = 5;
+  string status = 6;
   string created_by = 7;
-  string approved_by = 8;          // empty = not yet approved
-  string rollback_version = 9;     // empty unless this row itself is a rollback - the version it rolled back to
+  string approved_by = 8;
+  string rollback_version = 9;
   string correlation_id = 10;
   string release_notes = 11;
   bool requires_approval = 12;
-  string rolled_back_from_id = 13; // empty unless this row is a rollback - the deployment id it superseded
-  string scheduler_job_id = 14;    // empty unless a scheduled deploy is pending via scheduler-service
+  string rolled_back_from_id = 13;
+  string scheduler_job_id = 14;
   string last_error = 15;
   int64 created_at_epoch_millis = 16;
   int64 updated_at_epoch_millis = 17;
-  int64 scheduled_at_epoch_millis = 18; // 0 = not scheduled, deploy immediately
-  int64 started_at_epoch_millis = 19;   // 0 = not started
-  int64 completed_at_epoch_millis = 20; // 0 = not completed
-  string feature_flag_key = 21;    // empty = no flag tied to this deployment; see "Feature Flags enable new version" pipeline step
+  int64 scheduled_at_epoch_millis = 18;
+  int64 started_at_epoch_millis = 19;
+  int64 completed_at_epoch_millis = 20;
+  string feature_flag_key = 21;
 }
 
 message CreateDeploymentRequest {
@@ -53,16 +40,14 @@ message CreateDeploymentRequest {
   string created_by = 5;
   string release_notes = 6;
   string correlation_id = 7;
-  int64 scheduled_at_epoch_millis = 8; // 0 = deploy immediately (still subject to approval gating)
-  string feature_flag_key = 9; // optional - enabled in this same environment once the deployment reaches RUNNING
+  int64 scheduled_at_epoch_millis = 8;
+  string feature_flag_key = 9;
 }
 
 message CreateDeploymentResponse {
   Deployment deployment = 1;
 }
 
-// One id in - shared by every action that only ever needs a deployment's id
-// (DeployService, GetDeployment).
 message DeploymentIdRequest {
   string id = 1;
 }
@@ -70,7 +55,7 @@ message DeploymentIdRequest {
 message RollbackDeploymentRequest {
   string service_name = 1;
   string environment = 2;
-  string target_version = 3; // empty = roll back to the previous version automatically
+  string target_version = 3;
   string initiated_by = 4;
   string correlation_id = 5;
 }
@@ -87,10 +72,10 @@ message GetDeploymentResponse {
 }
 
 message ListDeploymentsRequest {
-  string service_name = 1; // optional filter, empty = any
-  string environment = 2;  // optional filter, empty = any
-  string status = 3;       // optional filter, empty = any
-  int32 page = 4;          // 0-based
+  string service_name = 1;
+  string environment = 2;
+  string status = 3;
+  int32 page = 4;
   int32 size = 5;
 }
 
@@ -103,8 +88,8 @@ message ListDeploymentsResponse {
 }
 
 message GetDeploymentHistoryRequest {
-  string service_name = 1; // optional filter, empty = any
-  string environment = 2;  // optional filter, empty = any
+  string service_name = 1;
+  string environment = 2;
   int32 page = 3;
   int32 size = 4;
 }

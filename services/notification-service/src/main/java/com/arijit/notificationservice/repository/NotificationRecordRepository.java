@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface NotificationRecordRepository extends JpaRepository<NotificationRecord, UUID> {
-
     @Query("""
             select n from NotificationRecord n
             where (:channel is null or n.channel = :channel)
@@ -35,7 +34,6 @@ public interface NotificationRecordRepository extends JpaRepository<Notification
             NotificationStatus status, int maxAttempts, Instant updatedBefore
     );
 
-    /** Backs the admin "queue" view - everything not yet in a terminal state. */
     @Query("""
             select n from NotificationRecord n
             where n.status in :statuses
